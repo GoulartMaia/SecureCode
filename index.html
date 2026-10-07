@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SecureCode – learn to break it, then fix it</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&display=swap">
+<style>
+:root{--bg:#eef3f1;--ink:#12262b;--mut:#506468;--card:#fff;--line:#cfdad7;--teal:#0f766e;--key:#e8a317;--bad:#c2410c;--good:#15803d;--code:#12262b;--codeink:#d7efe9}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1a1e;--ink:#e6f1ee;--mut:#9ab1b0;--card:#14262b;--line:#27403f;--teal:#2dd4bf;--key:#f5b83d;--bad:#fb923c;--good:#4ade80;--code:#08110f;--codeink:#c9ece4}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque",system-ui,sans-serif;line-height:1.1;margin:0 0 .5em}
+h1{font-size:clamp(2.6rem,8vw,4.6rem);font-weight:800;letter-spacing:-.02em}
+h2{font-size:1.9rem}h3{font-size:1.2rem}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--key);outline-offset:2px}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 5vw;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+.logo{font:800 1.25rem "Bricolage Grotesque",sans-serif;background:none;border:0;color:var(--ink);padding:0}
+.logo span{color:var(--teal)}
+.keys{font-weight:700;background:var(--card);border:1px solid var(--line);padding:4px 12px;border-radius:99px}
+main{max-width:860px;margin:0 auto;padding:32px 5vw 80px}
+.btn{background:var(--teal);color:#fff;border:0;padding:11px 20px;border-radius:8px;font-weight:700}
+.dark .btn,@media (prefers-color-scheme:dark){}
+@media (prefers-color-scheme:dark){.btn{color:#04201c}}
+.btn.alt{background:transparent;color:var(--ink);border:2px solid var(--line)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.crumb{background:none;border:0;color:var(--teal);font-weight:700;padding:0;margin-bottom:18px}
+.hero{padding:30px 0 10px}
+.hero p{font-size:1.2rem;color:var(--mut);max-width:34em}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin:26px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px}
+.card.theme{text-align:left;color:var(--ink);cursor:pointer;border-left:8px solid var(--teal)}
+.card.theme:hover{border-color:var(--key)}
+.card.theme:nth-child(2){border-left-color:var(--key)}
+.how{display:flex;gap:14px;flex-wrap:wrap;color:var(--mut)}
+.how div{flex:1 1 200px}.how b{color:var(--ink);display:block}
+.path{list-style:none;padding:0;margin:20px 0;border-left:4px solid var(--line);margin-left:14px}
+.path li{position:relative;margin:0 0 14px 26px}
+.path li::before{content:"";position:absolute;left:-36px;top:18px;width:16px;height:16px;border-radius:50%;background:var(--line);border:3px solid var(--bg)}
+.path li.done::before{background:var(--good)}.path li.open::before{background:var(--key)}
+.node{width:100%;display:flex;gap:12px;align-items:center;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;color:var(--ink)}
+.node[disabled]{opacity:.55;cursor:not-allowed}
+.node small{display:block;color:var(--mut)}
+.tag{margin-left:auto;font-size:.8rem;color:var(--mut)}
+.soon{color:var(--mut);font-style:italic}
+pre,.code{background:var(--code);color:var(--codeink);padding:14px 16px;border-radius:10px;font:15px/1.5 ui-monospace,Menlo,Consolas,monospace;overflow-x:auto;white-space:pre-wrap;word-break:break-word;margin:12px 0}
+.code mark{background:var(--bad);color:#fff;border-radius:3px;padding:0 3px}
+.diary{background:#fdf6dc;color:#3a2f10;border:1px solid #e3d08a;border-radius:12px;padding:20px;max-width:420px;box-shadow:4px 6px 0 #e3d08a;transform:rotate(-1deg);margin:18px 0}
+.diary b{font-family:"Bricolage Grotesque",sans-serif;font-size:1.2rem}
+label{display:block;font-weight:600;margin:10px 0 4px}
+input[type=text],input[type=password]{width:100%;max-width:420px;padding:10px 12px;font:16px ui-monospace,Menlo,monospace;border:2px solid var(--line);border-radius:8px;background:#fff;color:#12262b}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.msg{margin-top:14px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card)}
+.msg.good{border-color:var(--good)}.msg.bad{border-color:var(--bad)}
+.opt{display:block;width:100%;text-align:left;background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0}
+.opt:hover{border-color:var(--teal)}
+.tries span{display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--line);margin-right:6px}
+.tries span.used{background:var(--bad)}
+.switch{display:inline-flex;border:2px solid var(--line);border-radius:99px;overflow:hidden}
+.switch button{border:0;padding:6px 14px;background:transparent;color:var(--ink);font-weight:600}
+.switch button.on{background:var(--teal);color:#fff}
+@media (prefers-color-scheme:dark){.switch button.on{color:#04201c}}
+footer{text-align:center;color:var(--mut);font-size:.9rem;padding:20px}
+@media (prefers-reduced-motion:no-preference){.diary{transition:transform .2s}.diary:hover{transform:rotate(0)}}
+</style>
+</head>
+<body>
+<header>
+  <button class="logo" onclick="go('home')" aria-label="SecureCode home">Secure<span>Code</span></button>
+  <div class="keys" title="Keys unlock new levels">🔑 <span id="keys">0</span></div>
+</header>
+<main id="app"></main>
+<footer>SecureCode prototype · milestone 1 · everything here runs in your browser, no real database is touched.</footer>
+
+<script>
+/* ---------- progress (saved in the browser) ---------- */
+let P={done:{}};
+try{P=JSON.parse(localStorage.getItem('sc')||'{"done":{}}')}catch(e){}
+const save=()=>{try{localStorage.setItem('sc',JSON.stringify(P))}catch(e){}};
+const done=id=>!!P.done[id];
+const finish=id=>{if(!P.done[id]){P.done[id]=1;save();updKeys();}};
+const updKeys=()=>document.getElementById('keys').textContent=Object.keys(P.done).length;
+
+/* ---------- content map (add chapters here later) ---------- */
+const THEMES=[
+ {id:'sql',name:'SQL Injection',blurb:'How attackers talk to a database through a login form, and how to shut the door.',
+  chapters:[{id:'login',name:'Vulnerable Login',live:true},{id:'leak',name:'Information Leak'},{id:'errors',name:'Error Messages'}]},
+ {id:'ac',name:'Access Control',blurb:'Who is allowed to do what, and what happens when the rules are missing.',
+  chapters:[{id:'authn',name:'Authentication vs Authorization'},{id:'rbac',name:'Role-Based Access Control'},{id:'priv',name:'Privilege Escalation'}]}
+];
+const LEVELS=[
+ {id:'intro',name:'Introduction',sub:'Undo a secret: guess a diary password',need:null,live:true},
+ {id:'basics',name:'Basics',sub:'See how input becomes code',need:'login.intro',live:true},
+ {id:'l2',name:'Level 2',sub:'Block-code the defence (planned)',need:'login.basics'},
+ {id:'l3',name:'Level 3',sub:'Timed attack challenge (planned)',need:'login.l2'},
+ {id:'diy',name:'Do it yourself',sub:'Write the safe login yourself (planned)',need:'login.l3'},
+ {id:'final',name:'AI self-explanation & practice',sub:'Explain it back, get feedback (planned)',need:'login.diy'}
+];
+
+const app=document.getElementById('app');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const h=(html)=>{app.innerHTML=html;window.scrollTo(0,0);app.focus&&0};
+let route=['home'];
+function go(...r){route=r;render()}
+function render(){
+ updKeys();
+ const [v,a,b]=route;
+ if(v==='home')home();
+ else if(v==='theme')theme(a);
+ else if(v==='chapter')chapter(a,b);
+ else if(v==='lesson')({intro,basics}[b]||chapter)(a);
+}
+
+/* ---------- views ---------- */
+function home(){
+ h(`<section class="hero"><h1>Secure<span style="color:var(--teal)">Code</span></h1>
+ <p>Learn web security by doing it. First you pick the lock, then you learn why it opened, then you build a lock that holds.</p>
+ <div class="row"><button class="btn" onclick="go('chapter','sql','login')">Start with Vulnerable Login</button>
+ <button class="btn alt" onclick="document.getElementById('themes').scrollIntoView({behavior:'smooth'})">Browse themes</button></div></section>
+ <section class="how" style="margin-top:40px">
+  <div><b>Try first</b>Each chapter opens with a realistic scenario, before any theory.</div>
+  <div><b>Unlock as you learn</b>🔒 levels open when you earn the key from the one before. Already know a topic? Jump to any unlocked chapter.</div>
+  <div><b>Break, then fix</b>Levels go from guided to hands-on: reading code, attacking, then writing your own defence.</div></section>
+ <h2 id="themes" style="margin-top:48px">Themes</h2>
+ <div class="grid">${THEMES.map(t=>`<button class="card theme" onclick="go('theme','${t.id}')"><h3>${t.name}</h3><p style="margin:0;color:var(--mut)">${t.blurb}</p><p style="margin:10px 0 0"><b>${t.chapters.length} chapters</b></p></button>`).join('')}</div>
+ <p class="soon">Prototype scope: one chapter (Vulnerable Login) is playable, the rest of the map shows the planned structure.</p>`);
+}
+function theme(id){
+ const t=THEMES.find(x=>x.id===id);
+ h(`<button class="crumb" onclick="go('home')">← All themes</button><h2>${t.name}</h2><p style="color:var(--mut)">${t.blurb}</p>
+ <ul class="path">${t.chapters.map(c=>`<li class="${done('login.intro')&&c.live?'open':''}"><button class="node" ${c.live?`onclick="go('chapter','${t.id}','${c.id}')"`:'disabled'}>
+ <span style="font-size:1.4rem">${c.live?'🔓':'🔒'}</span><span><b>${c.name}</b><small>${c.live?'Playable in this prototype':'Coming in a later milestone'}</small></span></button></li>`).join('')}</ul>`);
+}
+function chapter(tid,cid){
+ const t=THEMES.find(x=>x.id===tid)||THEMES[0];
+ const c=t.chapters.find(x=>x.id===cid)||t.chapters[0];
+ if(!c.live){return theme(tid)}
+ h(`<button class="crumb" onclick="go('theme','${tid}')">← ${t.name}</button><h2>${c.name}</h2>
+ <p style="color:var(--mut)">Six levels, from first contact to teaching it back. Finish one to earn a 🔑 and open the next.</p>
+ <ul class="path">${LEVELS.map(l=>{
+   const key='login.'+l.id,unlocked=!l.need||done(l.need),playable=l.live&&unlocked;
+   return `<li class="${done(key)?'done':unlocked?'open':''}"><button class="node" ${playable?`onclick="go('lesson','${tid}','${l.id}')"`:'disabled'}>
+   <span style="font-size:1.4rem">${done(key)?'✅':unlocked?'🔓':'🔒'}</span><span><b>${l.name}</b><small>${l.sub}</small></span>
+   <span class="tag">${done(key)?'Done':!l.live?'Planned':unlocked?'Play':'Locked'}</span></button></li>`}).join('')}</ul>`);
+}
+
+/* ---------- Lesson 1: Introduction (the diary) ---------- */
+function intro(){
+ let tries=0;
+ h(`<button class="crumb" onclick="go('chapter','sql','login')">← Vulnerable Login</button><h2>Introduction: the open diary</h2>
+ <p>Your friend loves writing their own programs. They just left the room with this open on their laptop:</p>
+ <div class="diary"><b>Super Secret Diary</b><br>Username: <code>Margaret4233</code><br>Password: ▮▮▮▮▮▮▮▮</div>
+ <p>You are curious. Can you guess Margaret's password in <b>3 tries</b>?</p>
+ <div class="tries" id="tr" aria-label="Attempts used"><span></span><span></span><span></span></div>
+ <label for="g">Password guess</label><input id="g" type="text" autocomplete="off">
+ <div class="row"><button class="btn" id="go">Try it</button></div><div id="out" aria-live="polite"></div>`);
+ const g=document.getElementById('g'),out=document.getElementById('out');
+ const attempt=()=>{
+  if(!g.value.trim())return;
+  tries++;g.value='';
+  document.querySelectorAll('#tr span')[tries-1].classList.add('used');
+  if(tries<3){out.innerHTML=`<div class="msg bad">Access denied. ${3-tries} ${tries===2?'try':'tries'} left.</div>`;return}
+  document.getElementById('go').disabled=true;g.disabled=true;
+  out.innerHTML=`<div class="msg bad">Locked out. Guessing is a slow way to break in. What do you think of this task?</div>
+  <div id="mc">${['Impossible, I would need days','I need more context','I would never do this to a friend','It probably has something to do with SQL'].map((o,i)=>`<button class="opt" data-i="${i}">${o}</button>`).join('')}</div>`;
+  document.querySelectorAll('.opt').forEach(b=>b.onclick=()=>reveal(+b.dataset.i));
+ };
+ document.getElementById('go').onclick=attempt;
+ g.onkeydown=e=>{if(e.key==='Enter')attempt()};
+}
+function reveal(i){
+ const fb=['Guessing would take days, but you do not have to guess. There is a shortcut.','Fair. Here is the context: the diary builds a database question out of whatever you type.','Good instinct, and exactly why we practise on a simulation, never on real people.','Spot on. SQL is the language the diary uses to check your password.'][i];
+ finish('login.intro');
+ document.getElementById('app').insertAdjacentHTML('beforeend',`<div class="msg good"><b>🔑 Key earned.</b> ${fb}<br><br>By the end of this chapter you will be able to get into Margaret's diary <i>without</i> knowing the password, in case your friend is not great at sanitizing input. You will also know how to make sure that never works on you.
+ <div class="row"><button class="btn" onclick="go('lesson','sql','basics')">On to Basics</button><button class="btn alt" onclick="go('chapter','sql','login')">Back to the map</button></div></div>`);
+ document.querySelectorAll('.opt').forEach(b=>b.disabled=true);
+}
+
+/* ---------- Lesson 2: Basics (interactive query builder) ---------- */
+function injected(u,p){ // simplified model of a vulnerable query, for teaching only
+ const s=u+'|'+p;
+ return /'\s*or\s+('?)(\w+)\1\s*=\s*'?\2/i.test(p)||/'\s*or\s+1\s*=\s*1/i.test(s)||/^[^']*'\s*(--|#)/.test(u);
+}
+function basics(){
+ let safe=false;
+ h(`<button class="crumb" onclick="go('chapter','sql','login')">← Vulnerable Login</button><h2>Basics: input becomes code</h2>
+ <p>The diary checks your login by gluing your text into a SQL sentence:</p>
+ <div class="code">SELECT * FROM users WHERE name = '<b>YOU TYPE</b>' AND pass = '<b>YOU TYPE</b>'</div>
+ <p>If the text you type can <i>change the meaning</i> of that sentence, the database obeys you instead of the programmer. Try it.</p>
+ <div class="row"><span class="switch" role="group" aria-label="Diary version"><button id="v" class="on">Friend's version</button><button id="s">Protected version</button></span></div>
+ <label for="u">Username</label><input id="u" type="text" value="Margaret4233" autocomplete="off">
+ <label for="p">Password</label><input id="p" type="text" placeholder="try something that is not a password" autocomplete="off">
+ <p style="margin-bottom:0">The database will run:</p><div class="code" id="q"></div>
+ <div class="row"><button class="btn" id="login">Log in</button><button class="btn alt" id="hint">Hint</button></div><div id="out" aria-live="polite"></div>`);
+ const $=id=>document.getElementById(id);
+ const qshow=()=>{
+  const u=esc($('u').value),p=esc($('p').value);
+  $('q').innerHTML=safe?`SELECT * FROM users WHERE name = ? AND pass = ?<br>-- values sent separately: ["${u}", "${p}"]`
+  :`SELECT * FROM users WHERE name = '<mark>${u}</mark>' AND pass = '<mark>${p}</mark>'`;
+ };
+ const setMode=m=>{safe=m;$('v').classList.toggle('on',!m);$('s').classList.toggle('on',m);$('out').innerHTML='';qshow()};
+ $('v').onclick=()=>setMode(false);$('s').onclick=()=>setMode(true);
+ $('u').oninput=$('p').oninput=qshow;qshow();
+ $('hint').onclick=()=>{$('out').innerHTML=`<div class="msg">Hint: a quote <code>'</code> ends the text early. After it you can add your own condition that is always true, such as <code>' OR '1'='1</code>.</div>`};
+ $('login').onclick=()=>{
+  const u=$('u').value,p=$('p').value,o=$('out');
+  if(safe){
+   o.innerHTML=injected(u,p)?`<div class="msg good"><b>Blocked.</b> The protected version treats everything you typed as plain text, so your quote never ends anything. That is a <i>parameterized query</i>.</div>`:`<div class="msg bad">Access denied: wrong password. No tricks available here, which is the point.</div>`;
+   if(injected(u,p)&&done('login.basics')){}
+   return;
+  }
+  if(injected(u,p)){
+   finish('login.basics');
+   o.innerHTML=`<div class="msg good"><b>🔑 You are in!</b> The query now reads <code>... pass = '' OR '1'='1'</code>, and <code>'1'='1'</code> is always true. No password needed. That is a SQL injection, nice picking.<br><br>Now flip the switch to <b>Protected version</b> and try the same input.
+   <div class="row"><button class="btn" onclick="go('chapter','sql','login')">Back to the map</button></div></div>`;
+  }else if(p==='' ){o.innerHTML=`<div class="msg bad">Access denied: wrong password.</div>`}
+  else o.innerHTML=`<div class="msg bad">Access denied. Not a bad guess, but you are still thinking like a password-guesser. Think like the query.</div>`;
+ };
+}
+render();
+</script>
+</body>
+</html>
