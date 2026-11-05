@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ALLOWED_ORIGIN = "https://goulartmaia.github.io"
-ASSIGN_ROUND = "round-1"
+ASSIGN_ROUND = "round-2"
 # MODEL = "@cf/google/gemma-4-26b-a4b-it"   # uncomment and change to use another model
 
 [ai]
