@@ -4,7 +4,8 @@
 - `js/config.js`: server address, time limits, points
 - `js/core.js`: shared engine (points, timer, hints, chatbot, logging, assignment)
 - `js/level1.js`, `js/level2.js`: refresher, Level 1, Level 2
-- `js/level3.js`, `js/level4.js`: empty, for G
+- `js/level3.js`: Level 3, with a small simulated database and the block builder
+- `js/level4.js`: Level 4, with the code blanks, final check and written explanation
 - `server/`: the small server for the chatbot and logs
 
 ## Adding Level 3 or 4 (G)
@@ -18,6 +19,35 @@ Each question also needs `prompt` (plain text) and `key` (the answer). Only the 
 
 ## Pretest, post-test, consent (E)
 Add the views in a new file and register them in `LEVELS` in `js/core.js`. `welcome()` in `core.js` is the start page, so consent and the pretest can go right after it.
+
+### What Levels 3-4 teach (the post-test can cover these)
+Level 3, building attacks:
+- Cut off a check with a quote and `--`, as in `admin'--`.
+- A login uses the first row returned, so `admin' OR 1=1--` logs in as whoever comes first.
+- Attack a number field with no quotes, as in `5 OR 1=1`. Removing quotes doesn't stop this.
+- Use `UNION` to read another table. Both `SELECT`s need the same number of columns, and a leftover quote must be hidden with `--`.
+
+Level 4, repairing code:
+- Use `?` placeholders and pass the values separately, in the same order.
+- `'?'` in quotes is not a placeholder.
+- In a `LIKE` search, the `%` signs go in the value: `("%" + term + "%",)`.
+- A one-value tuple needs a comma: `(term,)`.
+- Removing quotes is not a fix. It misses number fields and changes names like O'Brien.
+- Explain why placeholders work: the database reads the SQL before it receives the values.
+
+Not taught, so please leave it out: `ORDER BY` columns and allowed lists.
+
+## Level 3-4 design choices
+- **Level 3 checks:** blocks run on the small database in `level3.js`, so any attack that works is accepted. It matched real SQLite on every query the blocks can produce.
+- **Level 4 feedback:** both versions see the corrected code and explanation. The AI version can also ask the assistant about it. Explaining to a confused AI was left out because the no-AI version would have no equal task.
+- **Level 4 final check:** the last two questions have no hints or chatbot in either version. They hide the engine's help panel using a `<style>` tag in the question, so `core.js` is unchanged.
+- **Tutor material:** the AI tutor gets the no-AI worked examples and its limits in off-screen text inside `.lesson`. This is Levels 3-4 only, and `server/worker.js` is unchanged.
+
+## Scoring the written explanation (`l4q4`)
+The site gives everyone who answers 5 points, because keyword matching would be unfair. For the analysis, use the logged text from the `q_attempt` event for `l4q4`. Two people score it without seeing the group, with 1 point for each idea (0-3):
+1. The SQL is fixed or read before the values arrive.
+2. The input travels separately from the SQL text.
+3. The input is treated as a value, so a quote or `--` can't change the query.
 
 ## Start page and passwords
 - `student`: starts the lesson in the AI or no-AI version. The server gives the group with fewer students so far. Without the server it's a coin flip, so the groups may not be equal.
