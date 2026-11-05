@@ -1,7 +1,7 @@
 /* ---------- Study flow: consent, participant code, technical pre-test and post-test, optional experience questions.
    The tests are identical for both groups and show no hints, assistant, lesson links, answer feedback or scores.
-   Responses go through studyStore (js/study-storage.js), which in this milestone keeps them in this browser only. ---------- */
-const DEMO_NOTICE='Milestone demo: your check and questionnaire answers are stored only in this browser. They are not sent to the research team and will not sync to another device.'+(api?' Your lesson activity is sent to the team’s server.':'');
+   Responses go through studyStore (js/study-storage.js), which also sends finished answers to the team's server. ---------- */
+const DEMO_NOTICE=api?'Your answers to the checks and the questionnaire are sent to the team’s server when you submit them, along with your lesson activity. They are linked to your participant code, not your name.':'Milestone demo: your answers are stored only in this browser. They are not sent to the research team and will not sync to another device.';
 const TEST_INTRO='This short check asks what you can currently do with database-query code. It is not a course grade. Answer without AI, notes, or outside help. If you do not know an answer, select “I don’t know” rather than looking it up. No answer feedback will be shown during this activity.';
 const TEST_ASSUMPTIONS='All examples are fictional and must stay inside this learning activity. Python examples use Python’s sqlite3 interface. SQL uses SQLite syntax. Names and inputs shown in examples are case-sensitive for this activity.';
 const TIMING_NOTE='There is no time limit. You can go back and change answers until you submit.';
@@ -27,7 +27,24 @@ function loadForm(version){
 /* Keeps the lesson state with the participant record, so a code can be resumed in this browser. */
 window.onLessonSave=state=>{if(state.code)studyStore.saveLessonState(state.code,state)};
 
-/* ---------- start page: study information and consent ---------- */
+/* ---------- first page: the password decides what you see. Students go on to consent and get one assigned
+   version; the group is only assigned after consent. The teacher sees both versions side by side. ---------- */
+function passwordGate(){
+ h(`<section class="hero"><h1>Secure<span style="color:var(--teal)">Code</span></h1>
+ <p>A short study about learning how SQL injection works and how to prevent it.</p></section>
+ <section class="card"><p style="margin-top:0">If you are a student, write <b>student</b>. If you are a teacher, write <b>teacher</b>.</p>
+ <label for="pw">Password</label><input id="pw" type="password" autocomplete="off">
+ <div class="row"><button class="btn" id="pgo">Continue</button></div><div id="pout" aria-live="polite"></div></section>`);
+ const submit=()=>{
+  const pw=$('pw').value.trim().toLowerCase();
+  if(pw===STUDENT_PASSWORD)return studyWelcome();
+  if(pw===TEACHER_PASSWORD){try{sessionStorage.setItem('sc-teacher','1')}catch(e){}return teacher()}
+  $('pout').innerHTML='<div class="msg bad">That password is not right.</div>';
+ };
+ $('pgo').onclick=submit;$('pw').onkeydown=e=>{if(e.key==='Enter')submit()};
+ $('pw').focus();
+}
+/* ---------- start page for students: study information and consent ---------- */
 function studyWelcome(){
  h(`<section class="hero"><h1>Secure<span style="color:var(--teal)">Code</span></h1>
  <p>A short study about learning how SQL injection works and how to prevent it.</p></section>
@@ -46,7 +63,7 @@ function studyWelcome(){
  <li><b>Your answers:</b> your answers to the starting check, the lesson exercises, the final check and the optional questionnaire.</li>
  <li><b>What you type in the lesson:</b> this includes the practice login boxes and, if your version has an assistant, your messages and its replies.</li>
  <li><b>Your activity:</b> how long each part takes, your attempts, the help you use and your points.</li></ul>
- <p><b>Where it goes:</b> ${api?'your lesson activity is sent to the team’s server, hosted by Cloudflare. Messages to the assistant also go to Cloudflare’s AI service, which writes the replies. In this demo, your check and questionnaire answers stay in this browser.':'in this demo, your data stays in this browser.'}</p>
+ <p><b>Where it goes:</b> ${api?'your answers and lesson activity are sent to the team’s server, hosted by Cloudflare. Answers to the checks and the questionnaire are sent when you submit them, and unfinished answers stay in this browser. Messages to the assistant also go to Cloudflare’s AI service, which writes the replies.':'in this demo, your data stays in this browser.'}</p>
  <p><b>What we do not ask for:</b> your name, email or student number. Our study records do not include your IP address, but the services that host the site (GitHub and Cloudflare) handle it to deliver the pages. <b>Please do not type personal information or a real password anywhere,</b> including the practice login boxes.</p>
  <p><b>How it is used:</b> the research team uses the data for a CS-411 Digital Education course project at EPFL. Your records are linked by your participant code, so they are pseudonymous, not fully anonymous. How long data is kept and who to contact will be described in the final information sheet.</p>
  <h3>Your consent</h3>
@@ -56,10 +73,6 @@ function studyWelcome(){
  <details class="card"><summary>I already have a participant code</summary>
  <label for="rc">Participant code</label><input id="rc" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="SC-XXXX-XXXX">
  <div class="row"><button class="btn alt" id="resume">Continue</button></div><div id="rout" aria-live="polite"></div></details>
- <details class="card"><summary>Team preview</summary>
- <p class="muted">For the project team: both lesson versions and the test forms, with dummy answers. It never shows stored responses.</p>
- <label for="pw">Password</label><input id="pw" type="password" autocomplete="off">
- <div class="row"><button class="btn alt" id="tgo">Open preview</button></div><div id="tout" aria-live="polite"></div></details>
  <p class="muted small"><a href="?demo-data=1">Milestone demo data in this browser (export or clear)</a></p>`);
  $('consent').onchange=()=>{$('begin').disabled=!$('consent').checked};
  $('decline').onclick=consentDeclined;
@@ -81,9 +94,6 @@ function studyWelcome(){
   resumeStudy()||map();
  };
  $('resume').onclick=resume;$('rc').onkeydown=e=>{if(e.key==='Enter')resume()};
- const tgo=()=>{if($('pw').value.trim().toLowerCase()===TEACHER_PASSWORD){try{sessionStorage.setItem('sc-teacher','1')}catch(e){}return teacher()}
-  $('tout').innerHTML='<div class="msg bad">That password is not right.</div>'};
- $('tgo').onclick=tgo;$('pw').onkeydown=e=>{if(e.key==='Enter')tgo()};
 }
 /* Declining creates no participant and logs nothing. */
 function consentDeclined(){
@@ -267,8 +277,11 @@ VIEWS.experience=()=>{
  $('eskip').onclick=()=>finish({skipped:true});
 };
 function complete(){
- h(`<h2 tabindex="-1" id="qh">Thank you for taking part</h2><p>You have finished the study activity. You can close this page.</p>
+ const waiting=()=>studyStore.pending?.()>0;
+ h(`<h2 tabindex="-1" id="qh">Thank you for taking part</h2><p id="closing">${waiting()?'Your last answers have not reached the team’s server yet. Please keep this page open and check your connection.':'You have finished the study activity. You can close this page.'}</p>
  <p>Your participant code: <b class="mono">${esc(P.code)}</b></p>${notice()}`);$('qh').focus();
+ if(waiting()){const t=setInterval(async()=>{await studyStore.flushUploads();
+  if(!waiting()){clearInterval(t);const c=$('closing');if(c)c.textContent='You have finished the study activity. You can close this page.'}},5000)}
 }
 
 /* ---------- milestone demo data: this browser only, manual export ---------- */

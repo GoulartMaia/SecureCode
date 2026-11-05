@@ -44,7 +44,7 @@ addEventListener('pagehide',flush);
 /* ---------- assignment: the server gives the group with fewer students so far, counting those who
    finished the post-test and those who started recently, so the groups stay equal.
    Returns null if the server can't be reached, and the study flow then falls back to local assignment. ---------- */
-const TEACHER_PASSWORD='teacher';
+const STUDENT_PASSWORD='student',TEACHER_PASSWORD='teacher';
 async function assignGroup(code){
  if(api)try{
   const r=await fetch(api+'/assign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code}),signal:AbortSignal.timeout(8000)});
@@ -90,9 +90,9 @@ function start(){
  if(params.get('demo-data')==='1')return demoDataPage();
  P.code?(resumeStudy()||map()):welcome();
 }
-/* The start page is the study entry in js/study.js: information, consent and a participant code.
-   The old shared 'student' password is no longer needed; the teacher password still opens the team preview. */
-function welcome(){studyWelcome()}
+/* The first page asks for a password (js/study.js). Students continue to the study information and consent,
+   and the teacher opens both versions side by side. */
+function welcome(){passwordGate()}
 
 /* ---------- teacher view: both versions side by side, one level at a time.
    Each side is this same site in preview mode: nothing is saved or logged, and there are no time limits. ---------- */

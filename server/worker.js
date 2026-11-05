@@ -81,11 +81,46 @@ async function assignment(request, env, action) {
 }
 
 async function saveLog(request, env) {
+  // Logs use a request type browsers send without asking first. A copy of the site on another address
+  // can't read our reply, so it would resend the same batch forever. Refuse those before storing anything.
+  const origin = request.headers.get("Origin");
+  if (origin && env.ALLOWED_ORIGIN && env.ALLOWED_ORIGIN !== "*" && origin !== env.ALLOWED_ORIGIN) {
+    return json(env, { error: "forbidden" }, 403);
+  }
   const events = JSON.parse(await request.text());
   if (!Array.isArray(events) || events.length > 50) return json(env, { error: "invalid log" }, 400);
   const code = String(events[0]?.code ?? "unknown").slice(0, 20);
   await env.LOGS.put(`${code}:${Date.now()}:${crypto.randomUUID()}`, JSON.stringify(events));
   return json(env, { ok: true });
+}
+
+// Finished pretests, posttests and questionnaires. A stored answer sheet is never overwritten,
+// so a repeated send from the browser changes nothing.
+const STUDY_KINDS = ["pre", "post", "experience"];
+
+async function saveStudy(request, env) {
+  const text = await request.text();
+  if (text.length > 200000) return json(env, { error: "too large" }, 413);
+  const { code, kind, record } = JSON.parse(text);
+  if (!PARTICIPANT_CODE.test(code ?? "") || !STUDY_KINDS.includes(kind) || typeof record !== "object" || !record) {
+    return json(env, { error: "invalid request" }, 400);
+  }
+  const key = `study:${code}:${kind}`;
+  if (await env.LOGS.get(key)) return json(env, { ok: true, duplicate: true });
+  await env.LOGS.put(key, JSON.stringify({ code, kind, received_at: new Date().toISOString(), ...record }));
+  return json(env, { ok: true });
+}
+
+async function readStudy(url, env) {
+  if (!env.ADMIN_TOKEN || url.searchParams.get("token") !== env.ADMIN_TOKEN) return json(env, { error: "forbidden" }, 403);
+  const out = [];
+  let cursor;
+  do {
+    const page = await env.LOGS.list({ prefix: "study:", cursor });
+    for (const k of page.keys) out.push(JSON.parse(await env.LOGS.get(k.name)));
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  return json(env, out);
 }
 
 async function readLogs(url, env) {
@@ -94,7 +129,7 @@ async function readLogs(url, env) {
   let cursor;
   do {
     const page = await env.LOGS.list({ cursor });
-    for (const k of page.keys.filter((k) => !k.name.startsWith("count:"))) out.push(...JSON.parse(await env.LOGS.get(k.name)));
+    for (const k of page.keys.filter((k) => !k.name.startsWith("count:") && !k.name.startsWith("study:"))) out.push(...JSON.parse(await env.LOGS.get(k.name)));
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
   return json(env, out);
@@ -111,6 +146,8 @@ export default {
       if (request.method === "GET" && url.pathname === "/counts") return json(env, await assigner(env).counts());
       if (request.method === "POST" && url.pathname === "/log") return await saveLog(request, env);
       if (request.method === "GET" && url.pathname === "/logs") return await readLogs(url, env);
+      if (request.method === "POST" && url.pathname === "/study") return await saveStudy(request, env);
+      if (request.method === "GET" && url.pathname === "/responses") return await readStudy(url, env);
       return json(env, { error: "not found" }, 404);
     } catch (e) {
       console.error(e);

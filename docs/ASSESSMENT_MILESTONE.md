@@ -1,6 +1,6 @@
 # SecureCode assessment milestone
 
-Status: working prototype with a local-only demo store. No database is connected, and no real participant data should be collected yet.
+Status: working prototype. Submitted test and questionnaire answers are sent to the team's Cloudflare server and also kept in the browser. The consent text, storage and access still need to be reviewed before real participants take part.
 
 ## Proposed milestone wording
 
@@ -12,13 +12,14 @@ The proposed survey interface will be accessible through a URL and QR code, with
 
 Study flow, in this order:
 
-1. Start page with draft study information, a list of the data collected, and an explicit consent checkbox with "Agree and continue" and "I do not agree" buttons (no names, emails or student numbers). Declining creates no participant and records nothing. The consent version is stored with the participant and sent in the `start` log event.
-2. A pseudonymous participant code (`SC-XXXX-XXXX`, with a check character to catch typing mistakes) is generated and shown.
-3. Starting check (technical pre-test, 6 questions).
-4. The open diary and the SQL refresher (unchanged).
-5. Levels 1-4 in the assigned AI or no-AI version (unchanged lesson content).
-6. Final check (technical post-test, 6 questions), unlocked only after Level 4.
-7. Optional experience questions (1 open-ended question on difficulties, 4 rating items and 1 open comment, the same for both groups) and a completion message.
+1. A password page: `student` continues to the study, and `teacher` opens the team preview.
+2. Start page with draft study information, a list of the data collected, and an explicit consent checkbox with "Agree and continue" and "I do not agree" buttons (no names, emails or student numbers). Declining creates no participant and records nothing. The consent version is stored with the participant and sent in the `start` log event.
+3. A pseudonymous participant code (`SC-XXXX-XXXX`, with a check character to catch typing mistakes) is generated and shown.
+4. Starting check (technical pre-test, 6 questions).
+5. The open diary and the SQL refresher (unchanged).
+6. Levels 1-4 in the assigned AI or no-AI version (unchanged lesson content).
+7. Final check (technical post-test, 6 questions), unlocked only after Level 4.
+8. Optional experience questions (1 open-ended question on difficulties, 4 rating items and 1 open comment, the same for both groups) and a completion message.
 
 Assessment interface:
 
@@ -47,7 +48,7 @@ Assignment:
 
 Team preview:
 
-- The existing teacher password now also previews the Starting check, Final check and experience questions in both versions, with dummy answers that are not model answers. Nothing is saved, and it never shows stored responses.
+- The teacher password, entered on the first page, shows both lesson versions side by side and also previews the Starting check, Final check and experience questions in both versions, with dummy answers that are not model answers. Nothing is saved, and it never shows stored responses.
 - The password is in the public code, so it only separates the two doors and is not access control.
 
 Demo data (`?demo-data=1`):
@@ -58,11 +59,11 @@ Demo data (`?demo-data=1`):
 
 Storage notice shown on every assessment screen:
 
-> Milestone demo: your check and questionnaire answers are stored only in this browser. They are not sent to the research team and will not sync to another device. Your lesson activity is sent to the team's server.
+> Your answers to the checks and the questionnaire are sent to the team's server when you submit them, along with your lesson activity. They are linked to your participant code, not your name.
 
-The last sentence appears only when the site has a server address.
+A build with no server address (`scripts/build-demo.sh`) keeps everything in the browser and says so instead.
 
-The existing lesson keeps its current behaviour. On the team's GitHub Pages site, lesson events and AI chat messages are still sent to the team's Cloudflare Worker, as before. Test answers are never sent there. The hosted demo build has the server address removed, so its AI version shows "The assistant is not connected yet" and sends no lesson logs.
+On the team's GitHub Pages site, lesson events, chatbot messages, and submitted test and questionnaire answers go to the team's Cloudflare Worker. Unfinished drafts stay in the browser, and test links such as `?group=ai` send no test answers. Download the answers from `/responses?token=<ADMIN_TOKEN>` on the server. A stored answer sheet is never overwritten, and answers that fail to send stay queued in the browser and are retried. The hosted demo build has the server address removed, so its AI version shows "The assistant is not connected yet" and sends nothing.
 
 ## Question-to-level mapping (researcher metadata)
 
@@ -95,7 +96,9 @@ Each test totals 12 points. Attack and Fix carry 4 points each and Understand an
 - Planning estimate: about 5-7 minutes per technical test. This is not a measured duration.
 - Pilot the full session. If it must stay around 30 minutes, either shorten the lesson or agree on a reduced matched question set. The tests should not be added to a 30-minute lesson while still advertising 30 minutes in total.
 
-## Database: planned, not connected
+## A fuller database: planned
+
+Answers are currently stored in Cloudflare KV. This section describes a fuller backend, if the study needs one.
 
 Replace `LocalDemoStudyStorage` in `js/study-storage.js` with an API adapter that has the same methods (`createParticipant`, `findParticipant`, `startAttempt`, `saveDraft`, `submitAttempt`, `saveExperience`). Proposed backend: an institution-approved PostgreSQL service behind a small API.
 
@@ -121,7 +124,7 @@ Before any real collection, document access permissions, retention and deletion,
 
 - Static site: a determined visitor can open `js/forms/post-v1.js` directly. The interface prevents browsing it during the pre-test, but only a backend can enforce it.
 - On a shared computer, start each new participant with `?reset=1`. Earlier demo records stay in the browser's demo store until cleared.
-- Cross-device resume, centralized storage, server timestamps and real researcher access are planned, not implemented.
+- Cross-device resume is planned, not implemented. The server only records the time it receives answers, and researcher access is a single shared password.
 - The consent text is a placeholder for review.
 
 ## Deployment and QR
@@ -147,7 +150,7 @@ Checked in Chromium on a local server, with the lesson server blocked or disconn
 - Participant code: the same code was attached to the pre-test, lesson log events and post-test; resume by code worked in the same browser, and an unknown valid code showed the cross-device limitation message.
 - Fallback assignment: four new participants in one browser were split two AI and two no-AI.
 - Exports: JSON and CSV downloaded; parsing the CSV gave back exactly the stored text (quotes, tab, line breaks, a leading `=`), with 0 mismatches. Every item was "not graded" with an empty score.
-- The demo storage notice appears on the start page and on every assessment screen, and no screen claims centralized storage.
+- The storage notice appears on the start page and on every assessment screen.
 - The existing diary, refresher, Levels 1-4 and the teacher view still load in both versions; the AI version still shows the assistant and the no-AI version still shows worked examples. The teacher view did not create or read any stored responses.
 
 Not tested: real phones (only an emulated 375 px viewport), screen readers, the hosted GitHub Pages version of these changes, and anything involving a backend.

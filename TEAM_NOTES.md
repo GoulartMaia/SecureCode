@@ -20,7 +20,7 @@ Each question also needs `prompt` (plain text) and `key` (the answer). Only the 
 ## Pretest, post-test, consent (E)
 - `js/study.js`: start page with study information and consent, participant code, the two technical checks, the optional experience questions and the demo data page (`?demo-data=1`).
 - `js/forms/pre-v1.js`, `js/forms/post-v1.js`: the question text only. No answers or scoring are in the site; the private rubric is kept outside the repository.
-- `js/study-storage.js`: storage adapter. For the milestone it keeps responses in this browser only; replace it with an API adapter later (see `docs/ASSESSMENT_MILESTONE.md`).
+- `js/study-storage.js`: keeps answers in the browser so a participant can resume, and sends submitted test and questionnaire answers to the server. Download them from `/responses?token=<ADMIN_TOKEN>` on the server.
 - Order: consent, participant code, Starting check, diary, refresher, Levels 1-4, Final check, optional experience questions.
 
 ### What Levels 3-4 teach (the post-test can cover these)
@@ -54,8 +54,9 @@ The site gives everyone who answers 5 points, because keyword matching would be 
 3. The input is treated as a value, so a quote or `--` can't change the query.
 
 ## Start page and passwords
-- Participants no longer need a password: they read the study information, agree, and get a participant code. In the milestone demo the group comes from a local permuted-block list in the browser (balanced only within one browser); the real study should assign on the server.
-- `teacher` (under "Team preview"): shows both versions side by side, level by level, and the test forms with dummy answers. Nothing is saved or logged, there are no time limits, and it never shows stored responses.
+- `student`: goes to the study information and consent, then one assigned version (AI or no-AI). The first page tells people which word to write.
+- `teacher`: shows both versions side by side, level by level, and the test forms with dummy answers. Nothing is saved or logged, and there are no time limits.
+- The group is only assigned after consent, so typing a password doesn't count towards the split.
 
 The passwords are in the public code, so they only keep the two doors apart. They aren't real security.
 
