@@ -80,18 +80,148 @@ const L4_QUESTIONS=[
 /* Final check: no hints and no chatbot in either version, so the score shows what students can do alone.
    This keeps the engine's scoring and logging, and hides its help panel and lesson review for this question only. */
 const NO_HELP='<style>#qhelp,#app details{display:none}</style>';
-const FINAL_LINES=['def login(name, password):','    name = name.replace("\'", "")','    sql = "SELECT * FROM users WHERE name = \'" + name + "\' AND password = \'" + password + "\'"','    row = cursor.execute(sql).fetchone()','    return row is not None'];
-const FINAL_BAD=[1,2,3];
+const FINAL_CODE=`def login(name, password):
+    name = name.replace("'", "")
+    sql = "SELECT * FROM users WHERE name = '" + name + "' AND password = '" + password + "'"
+    row = cursor.execute(sql).fetchone()
+    return row is not None`;
+
+/* Reads Python well enough to find strings, names and brackets. Comments are dropped. */
+function pyTokens(code){
+ const out=[];let i=0,depth=0;
+ while(i<code.length){
+  const c=code[i],rest=code.slice(i);let m;
+  if(c==='#'){while(i<code.length&&code[i]!=='\n')i++;continue}
+  if(c==='\n'){if(depth===0)out.push({k:'nl'});i++;continue}
+  if(/\s/.test(c)){i++;continue}
+  if((m=/^([rRbBuUfF]{0,2})("""|'''|"|')/.exec(rest))){
+   const q=m[2];let j=i+m[0].length,s='';
+   for(;;){
+    if(j>=code.length||(q.length===1&&code[j]==='\n'))return null;
+    if(code.startsWith(q,j)){j+=q.length;break}
+    if(code[j]==='\\'&&j+1<code.length){s+=code[j+1];j+=2;continue}
+    s+=code[j++];
+   }
+   out.push({k:'str',v:s,f:/f/i.test(m[1])});i=j;continue;
+  }
+  if((m=/^[A-Za-z_]\w*/.exec(rest))){out.push({k:'id',v:m[0]});i+=m[0].length;continue}
+  if('([{'.includes(c))depth++;
+  if(')]}'.includes(c))depth--;
+  out.push({k:'op',v:c});i++;
+ }
+ return depth===0?out:null;
+}
+const FIX_DB={...L3_DB,users:{...L3_DB.users,rows:[...L3_DB.users.rows,[4,"O'Brien",'ob1']]}};
+/* Rule-based check of a student's repaired login, since Python can't easily run in the browser. Input must stay out
+   of the SQL text. The SQL is then run on the simulated database, so attacks must fail and real logins must work.
+   Returns '' when the fix passes, or the first problem found. Checked against real Python: see TEAM_NOTES.md. */
+function checkLoginFix(raw){
+ const code=raw.replace(/[‘’]/g,"'").replace(/[“”]/g,'"');
+ const lines=code.split('\n').filter(l=>l.trim()&&!l.trim().startsWith('#'));
+ const STRUCTURE='Keep the function working: it still has to start with <code>def login(name, password):</code>, indent its lines, set <code>row</code> with <code>fetchone()</code> and end with <code>return row is not None</code>.';
+ if(!/^def\s+login\s*\(\s*name\s*,\s*password\s*\)\s*:\s*$/.test(lines[0]||'')||lines.slice(1).some(l=>!/^\s/.test(l)))return STRUCTURE;
+ const t=pyTokens(code);
+ if(!t)return 'A quote or a bracket is not closed, so this code would not run.';
+ const isOp=(i,v)=>t[i]&&t[i].k==='op'&&t[i].v===v;
+ const isId=(i,v)=>t[i]&&t[i].k==='id'&&t[i].v===v;
+ /* Everything assigned to a name, as lists of tokens. */
+ const assigned=name=>{
+  const found=[];
+  t.forEach((x,i)=>{
+   if(!isId(i,name)||isOp(i-1,'.')||!(i===0||t[i-1].k==='nl'))return;
+   if(isOp(i+1,'+')&&isOp(i+2,'=')){found.push(null);return}
+   if(!isOp(i+1,'=')||isOp(i+2,'='))return;
+   let j=i+2;const rhs=[];
+   while(j<t.length&&t[j].k!=='nl')rhs.push(t[j++]);
+   found.push(rhs);
+  });
+  return found;
+ };
+ const QUOTES="Removing or changing the input isn't needed once the values are passed separately, and it would change names like O'Brien. Leave <code>name</code> and <code>password</code> as they are.";
+ if(t.some((x,i)=>x.k==='id'&&x.v==='replace'&&isOp(i-1,'.'))||assigned('name').length||assigned('password').length)return QUOTES;
+ const calls=t.map((x,i)=>isId(i,'cursor')&&isOp(i+1,'.')&&isId(i+2,'execute')&&isOp(i+3,'(')?i:-1).filter(i=>i>=0);
+ if(calls.length!==1)return 'The code needs exactly one <code>cursor.execute(...)</code>.';
+ /* Split the arguments of execute at its top-level commas. */
+ const start=calls[0],args=[[]];let d=1,j=start+4;
+ for(;j<t.length&&d>0;j++){
+  const x=t[j];
+  if(x.k==='op'&&'([{'.includes(x.v))d++;
+  if(x.k==='op'&&')]}'.includes(x.v)){d--;if(!d)break}
+  if(x.k==='op'&&x.v===','&&d===1)args.push([]);else args[args.length-1].push(x);
+ }
+ const end=j;
+ if(args.length<2||!args[1].length)return 'The values are not passed separately. Give them to <code>execute</code> as a second argument.';
+ if(args.length>2)return 'Give <code>execute</code> two arguments: the SQL and one tuple with the values.';
+ /* The SQL must be fixed text: only plain string literals, and no input anywhere. */
+ let sqlArg=args[0];
+ const SQLTEXT='User input is still part of the SQL text. Keep the SQL as fixed text with <code>?</code> placeholders.';
+ if(sqlArg.length===1&&sqlArg[0].k==='id'){
+  const a=assigned(sqlArg[0].v);
+  if(a.length!==1||!a[0])return SQLTEXT;
+  sqlArg=a[0];
+ }
+ if(!sqlArg.length||!sqlArg.every((x,i)=>i%2?x.k==='op'&&x.v==='+'||x.k==='str':x.k==='str'&&!x.f)||sqlArg.some(x=>x.f))return SQLTEXT;
+ const sql=sqlArg.filter(x=>x.k==='str').map(x=>x.v).join('').trim().replace(/;$/,'');
+ /* The values must be exactly the two names, in a tuple or list. */
+ let valArg=args[1];
+ if(valArg.length===1&&valArg[0].k==='id'&&!['name','password'].includes(valArg[0].v)){
+  const a=assigned(valArg[0].v);
+  if(a.length===1&&a[0])valArg=a[0];
+ }
+ const VALUES='Pass the values as a tuple, one for each <code>?</code>, like <code>(name, password)</code>.';
+ const open=valArg[0],close=valArg[valArg.length-1];
+ if(!open||!close||open.k!=='op'||close.k!=='op'||!((open.v==='('&&close.v===')')||(open.v==='['&&close.v===']')))return VALUES;
+ const names=valArg.slice(1,-1).filter(x=>!(x.k==='op'&&x.v===','));
+ if(!names.every(x=>x.k==='id'&&['name','password'].includes(x.v))||valArg.slice(1,-1).some((x,i)=>i%2?!(x.k==='op'&&x.v===','):x.k!=='id'))return VALUES;
+ /* The rest of the function must still set row and return it. */
+ const after=t.slice(end+1);
+ const inline=t[start-1]&&isOp(start-1,'=')&&isId(start-2,'row')&&(start-2===0||t[start-3].k==='nl')&&after[0]?.v==='.'&&after[1]?.v==='fetchone'&&after[2]?.v==='('&&after[3]?.v===')';
+ const apart=t.some((x,i)=>isId(i,'row')&&isOp(i+1,'=')&&isId(i+2,'cursor')&&isOp(i+3,'.')&&isId(i+4,'fetchone')&&isOp(i+5,'(')&&isOp(i+6,')')&&i>end);
+ const ret=t.some((x,i)=>isId(i,'return')&&isId(i+1,'row')&&isId(i+2,'is')&&isId(i+3,'not')&&isId(i+4,'None')&&(!t[i+5]||t[i+5].k==='nl'));
+ if(!(inline||apart)||!ret)return STRUCTURE;
+ /* Run the query on the simulated database, with values bound the way a real placeholder does it. */
+ const login=(name,password)=>{
+  const vals=names.map(x=>x.v==='name'?name:password);
+  let n=0,q=false,bound='';
+  for(const c of sql){
+   if(c==="'")q=!q;
+   if(c==='?'&&!q){const v=vals[n++];bound+=v===undefined?'?':"'"+v.replace(/'/g,"''")+"'"}
+   else bound+=c;
+  }
+  if(n!==vals.length)throw {count:true};
+  return runSQL(bound,FIX_DB).rows.length>0;
+ };
+ try{
+  if(!/\?/.test(sql)||!login('Leo','pw3'))return /\?/.test(sql)?'A normal login no longer works: Leo with the right password is refused. Check that each value matches its placeholder.':'The SQL needs a <code>?</code> placeholder for each value.';
+  if(login('Leo','wrong'))return 'A wrong password still logs in. The query has to check both the name and the password.';
+  if(login("admin'--",'x'))return "The attack <code>admin'--</code> still logs in.";
+  if(login("O'Brien",'ob1')!==true)return "O'Brien can't log in with the right password.";
+ }catch(e){
+  if(e&&e.count)return 'The number of <code>?</code> placeholders must match the number of values. A <code>?</code> inside quotes is not a placeholder.';
+  return 'The database could not read this SQL. Keep the same query, and change only what is needed to make it safe.';
+ }
+ return '';
+}
+
 const L4_FINAL=[{id:'l4q3',hints:[],prompt:'',key:'',
- text:`${NO_HELP}<p><b>Final check: no help is available on this page.</b></p><p>Make this login secure. People with names like O'Brien must also be able to log in. Click <b>every line</b> that has to be changed or removed.</p>`,
+ text:`${NO_HELP}<p><b>Final check: no help is available on this page.</b></p><p>This login can be attacked. <b>Change the code yourself until it is safe.</b> Normal logins must still work, including for people with names like O'Brien. Edit the code directly in the box. You have two tries.</p>`,
  render(mount,set){
-  mount.innerHTML=codeLines(FINAL_LINES);
-  const on=new Set();
-  mount.querySelectorAll('.line').forEach(b=>b.onclick=()=>{const i=+b.dataset.i;on.has(i)?on.delete(i):on.add(i);b.classList.toggle('sel',on.has(i));set(on.size?[...on].sort():null)});
+  mount.innerHTML=`<label for="fixcode">Your code</label><textarea class="editor" id="fixcode" spellcheck="false" autocomplete="off" autocapitalize="off" autocorrect="off" wrap="off" maxlength="1500"></textarea>
+  <div class="row"><button class="btn alt" id="fixreset">Start over</button></div><div class="blockresult"></div>`;
+  const box=mount.querySelector('#fixcode'),panel=mount.querySelector('.blockresult');
+  let tries=0;
+  const update=()=>{panel.innerHTML='';set(box.value.trim()&&box.value!==FINAL_CODE?{code:box.value,show:(m,last)=>{panel.innerHTML=m;if(last)box.readOnly=true},tried:()=>++tries}:null)};
+  box.value=FINAL_CODE;box.oninput=update;
+  mount.querySelector('#fixreset').onclick=()=>{box.value=FINAL_CODE;update()};
+  update();
  },
- isCorrect:a=>a.length===FINAL_BAD.length&&FINAL_BAD.every(x=>a.includes(x)),
- describe:a=>'lines '+a.map(x=>x+1).join(', '),
- explain:`Three lines change:<div class="code">def login(name, password):
+ isCorrect(a){
+  const problem=checkLoginFix(a.code),ok=!problem,last=ok||a.tried()>=MAX_ATTEMPTS;
+  a.show(ok?`<div class="msg"><b>What happened:</b> The attack failed, and normal logins worked, including O'Brien's.</div>`:`<div class="msg"><b>What happened:</b> ${problem}</div>`,last);
+  return ok;
+ },
+ describe:a=>a.code,
+ explain:`One safe version:<div class="code">def login(name, password):
     sql = "SELECT * FROM users WHERE name = ? AND password = ?"
     row = cursor.execute(sql, (name, password)).fetchone()
     return row is not None</div>Line 3 uses placeholders, and line 4 passes the values separately. Line 2 goes, because it would change O'Brien's name and stop that person from logging in.`}];
@@ -127,5 +257,5 @@ VIEWS.level4=()=>{
  const final=()=>runQuiz({level:'level4',title:'Level 4: Final check',questions:L4_FINAL,review:()=>'',onDone:()=>writeUp(finish)});
  const quiz=()=>runQuiz({level:'level4',title:'Level 4: Fix',questions:L4_QUESTIONS,review:()=>`<div class="lesson">${L4_BODY}</div>`+(isAI()?'':L4_EXAMPLES),onDone:final});
  if(P.deadline.level4&&Date.now()>=P.deadline.level4)return quiz();
- learnStage({level:'level4',title:'Level 4: Closing the door',html:lessonFor(L4_BODY,L4_EXAMPLES),examples:L4_EXAMPLES,onDone:quiz});
+ learnStage({level:'level4',title:'Level 4: Closing the door',html:`<div class="lesson">${L4_BODY}</div>`,examples:L4_EXAMPLES,onDone:quiz});
 };

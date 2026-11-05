@@ -9,12 +9,8 @@ document.head.insertAdjacentHTML('beforeend',`<style>
 .code .tile.empty{border-style:dashed;border-color:var(--key);background:transparent;color:var(--key)}
 textarea.write{width:100%;min-height:110px;padding:10px 12px;font:inherit;border:2px solid var(--line);border-radius:8px;background:#fff;color:#12262b}
 .blocklabel{font-weight:600;margin:12px 0 0}
+textarea.editor{display:block;width:100%;min-height:190px;margin:12px 0;padding:14px 16px;border:2px solid var(--line);border-radius:10px;background:var(--code);color:var(--codeink);font:15px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre;overflow-x:auto;resize:vertical}
 </style>`);
-
-/* The AI tutor reads the text inside .lesson. This keeps the no-AI worked examples and the tutor's limits
-   off screen in that text, so the tutor works from the same material. Only the AI version gets it. */
-const lessonFor=(body,examples)=>`<div class="lesson">${body}${isAI()?`<div aria-hidden="true" style="position:absolute;left:-9999px;width:600px">
-<p>Tutor limits: use only the concepts above and in these examples, keep your examples at this level of difficulty, and prefer a guiding question over giving the answer. Examples: ${examples}</p></div>`:''}</div>`;
 
 /* ---------- A small simulated database. It runs only the SQL the blocks can produce, so an attack passes because
    it works, not because it matches a stored answer. Tested against real SQLite on every block order. ---------- */
@@ -211,5 +207,5 @@ VIEWS.level3=()=>{
  const quiz=()=>runQuiz({level:'level3',title:'Level 3: Attack',questions:L3_QUESTIONS,review:()=>`<div class="lesson">${L3_BODY}</div>`+(isAI()?'':L3_EXAMPLES),
   onDone:()=>finishLevel('level3','You have built three real attacks, in a simulation. Next, you will stop them.')});
  if(P.deadline.level3&&Date.now()>=P.deadline.level3)return quiz();
- learnStage({level:'level3',title:'Level 3: Three ways in',html:lessonFor(L3_BODY,L3_EXAMPLES),examples:L3_EXAMPLES,onDone:quiz});
+ learnStage({level:'level3',title:'Level 3: Three ways in',html:`<div class="lesson">${L3_BODY}</div>`,examples:L3_EXAMPLES,onDone:quiz});
 };

@@ -5,7 +5,7 @@
 - `js/core.js`: shared engine (points, timer, hints, chatbot, logging, assignment)
 - `js/level1.js`, `js/level2.js`: refresher, Level 1, Level 2
 - `js/level3.js`: Level 3, with a small simulated database and the block builder
-- `js/level4.js`: Level 4, with the code blanks, final check and written explanation
+- `js/level4.js`: Level 4, with the code blanks, code editor and written explanation
 - `server/`: the small server for the chatbot and logs
 
 ## Adding Level 3 or 4 (G)
@@ -41,7 +41,8 @@ Not taught, so please leave it out: `ORDER BY` columns and allowed lists.
 - **Level 3 checks:** blocks run on the small database in `level3.js`, so any attack that works is accepted. It matched real SQLite on every query the blocks can produce.
 - **Level 4 feedback:** both versions see the corrected code and explanation. The AI version can also ask the assistant about it. Explaining to a confused AI was left out because the no-AI version would have no equal task.
 - **Level 4 final check:** the last two questions have no hints or chatbot in either version. They hide the engine's help panel using a `<style>` tag in the question, so `core.js` is unchanged.
-- **Tutor material:** the AI tutor gets the no-AI worked examples and its limits in off-screen text inside `.lesson`. This is Levels 3-4 only, and `server/worker.js` is unchanged.
+- **Level 4 repair:** in the final check, students edit the login code themselves. `checkLoginFix` in `level4.js` requires fixed SQL text with `?` placeholders and separate values, then runs the SQL on the simulated database: the attack must fail, and normal logins must work, including O'Brien's. On 42 student-style answers compared with real Python and SQLite, it accepted nothing unsafe or broken. It can refuse unusual but safe code, such as manual quote escaping, so check the logged code in the `q_attempt` events if a student's score looks wrong.
+- **Tutor material:** in every level's lesson, `learnStage` in `core.js` sends the tutor the no-AI worked examples and its limits. AI students can't see the examples unless the tutor shares them. `server/worker.js` is unchanged.
 
 ## Scoring the written explanation (`l4q4`)
 The site gives everyone who answers 5 points, because keyword matching would be unfair. For the analysis, use the logged text from the `q_attempt` event for `l4q4`. Two people score it without seeing the group, with 1 point for each idea (0-3):

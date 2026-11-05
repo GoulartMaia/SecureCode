@@ -138,6 +138,8 @@ function finishLevel(id,msg=''){
 
 /* ---------- learning stage: same text for everyone, with a time limit.
    no-AI group: text + worked examples. AI group: text + chatbot. ---------- */
+const TUTOR_LIMITS='Use these worked examples when the student asks for an example or an explanation. Use only the concepts in the lesson and these examples, keep any new example at the same difficulty, and prefer a guiding question over giving the answer.';
+const plainText=html=>{const d=document.createElement('div');d.innerHTML=String(html||'').replace(/<\/(p|div)>/g,'\n');return d.textContent.trim()};
 function learnStage({level,title,html,examples,seconds,onDone,onMount}){
  seconds=seconds||LEARN_SECONDS[level];
  if(PREVIEW&&STAGE==='questions')return onDone();
@@ -148,7 +150,8 @@ function learnStage({level,title,html,examples,seconds,onDone,onMount}){
  ${isAI()?'':`<h3 style="margin-top:24px">Worked examples</h3>${examples}`}
  <div id="learnhelp"></div>
  <div class="row"><button class="btn" id="learndone">I'm ready for the questions</button></div>`);
- if(isAI())chatBox($('learnhelp'),{level,stage:'learn',limit:MAX_LEARN_CHAT,context:()=>({stage:'learn',level,lesson:app().querySelector('.lesson')?.innerText.slice(0,1800)})});
+ /* The tutor gets the same worked examples the no-AI version shows, and the same limits in every level. */
+ if(isAI())chatBox($('learnhelp'),{level,stage:'learn',limit:MAX_LEARN_CHAT,context:()=>({stage:'learn',level,lesson:app().querySelector('.lesson')?.innerText.slice(0,1800),examples:plainText(examples).slice(0,1800),tutor_limits:TUTOR_LIMITS})});
  let over=false;
  const finish=(why)=>{if(over)return;over=true;clearInterval(tick);log('learn_end',{level,why,secondsLeft:left()});onDone()};
  const show=()=>{
