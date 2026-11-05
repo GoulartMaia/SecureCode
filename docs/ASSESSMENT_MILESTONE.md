@@ -18,7 +18,7 @@ Study flow, in this order:
 4. The open diary and the SQL refresher (unchanged).
 5. Levels 1-4 in the assigned AI or no-AI version (unchanged lesson content).
 6. Final check (technical post-test, 6 questions), unlocked only after Level 4.
-7. Optional experience questions (4 rating items and 1 open comment, the same for both groups) and a completion message.
+7. Optional experience questions (1 open-ended question on difficulties, 4 rating items and 1 open comment, the same for both groups) and a completion message.
 
 Assessment interface:
 

@@ -228,10 +228,13 @@ const EXP=[
  {id:'EXP-03',text:'How difficult did the exercises feel?',scale:['Very easy','Easy','Neither easy nor difficult','Difficult','Very difficult']},
  {id:'EXP-04',text:'When I got stuck, I felt supported by the help available in the lesson.',scale:['Strongly disagree','Disagree','Neither agree nor disagree','Agree','Strongly agree'],extra:'I did not get stuck'}
 ];
+/* Open-ended question for the qualitative analysis, from the M4 slides. Shown first so it is less likely to be skipped. */
+const EXP_OPEN={id:'EXP-06',text:'Where, if anywhere, did you encounter difficulty?',sub:'What did you do next?'};
 VIEWS.experience=()=>{
  if(!PREVIEW&&!done('posttest'))return map();
  h(`<h2 tabindex="-1" id="qh">Your experience (optional)</h2><p class="muted">Every question is optional. Your answers here are separate from the technical checks.</p>
- <form id="exp">${EXP.map(q=>`<fieldset class="card"><legend>${esc(q.text)}</legend><div class="scale">
+ <form id="exp"><div class="field"><label for="${EXP_OPEN.id}">${esc(EXP_OPEN.text)} ${esc(EXP_OPEN.sub)}</label><textarea id="${EXP_OPEN.id}" rows="4"></textarea></div>
+ ${EXP.map(q=>`<fieldset class="card"><legend>${esc(q.text)}</legend><div class="scale">
  ${q.scale.map((s,i)=>`<label class="pt"><input type="radio" name="${q.id}" value="${i+1}"><span><b>${i+1}</b> ${esc(s)}</span></label>`).join('')}
  ${q.extra?`<label class="pt"><input type="radio" name="${q.id}" value="not_stuck"><span>${esc(q.extra)}</span></label>`:''}</div></fieldset>`).join('')}
  <div class="field"><label for="EXP-05">Anything else you would like to tell us about the lesson? (optional)</label><textarea id="EXP-05" rows="3"></textarea>
@@ -241,7 +244,7 @@ VIEWS.experience=()=>{
  if(PREVIEW){$('esub').disabled=true;return}
  const finish=async(answers)=>{$('esub').disabled=true;await studyStore.saveExperience(P.code,answers);P.done.experience=1;save();complete()};
  $('exp').onsubmit=e=>{e.preventDefault();const fd=new FormData($('exp'));
-  finish(Object.fromEntries([...EXP.map(q=>[q.id,fd.get(q.id)||null]),['EXP-05',$('EXP-05').value||null]]))};
+  finish(Object.fromEntries([[EXP_OPEN.id,$(EXP_OPEN.id).value||null],...EXP.map(q=>[q.id,fd.get(q.id)||null]),['EXP-05',$('EXP-05').value||null]]))};
  $('eskip').onclick=()=>finish({skipped:true});
 };
 function complete(){
@@ -283,7 +286,7 @@ async function demoDataPage(){
  const json=JSON.stringify({exported_at:new Date().toISOString(),storage:'local-demo-browser-only',...db},null,2);
  $('xjson').onclick=()=>download(`securecode-demo-${stamp}.json`,json,'application/json');
  $('xcsv').onclick=()=>download(`securecode-demo-responses-${stamp}.csv`,toCsv(responseRows(db)),'text/csv;charset=utf-8');
- $('xexp').onclick=()=>download(`securecode-demo-experience-${stamp}.csv`,toCsv([['participant_code','submitted_at','skipped',...EXP.map(q=>q.id),'EXP-05'],...Object.values(db.experience).map(e=>[e.participant_code,e.submitted_at,!!e.answers.skipped,...EXP.map(q=>e.answers[q.id]),e.answers['EXP-05']])]),'text/csv;charset=utf-8');
+ $('xexp').onclick=()=>download(`securecode-demo-experience-${stamp}.csv`,toCsv([['participant_code','submitted_at','skipped',EXP_OPEN.id,...EXP.map(q=>q.id),'EXP-05'],...Object.values(db.experience).map(e=>[e.participant_code,e.submitted_at,!!e.answers.skipped,e.answers[EXP_OPEN.id],...EXP.map(q=>e.answers[q.id]),e.answers['EXP-05']])]),'text/csv;charset=utf-8');
  $('xshow').onclick=()=>{$('jsonout').hidden=false;$('jsonout').textContent=json};
  $('sure').onchange=()=>{$('xclear').disabled=!$('sure').checked};
  $('xclear').onclick=async()=>{await studyStore.clearAll();try{localStorage.removeItem('sc2')}catch(e){}P=fresh();$('cout').innerHTML='<div class="msg good">Demo data cleared.</div>';setTimeout(demoDataPage,600)};
