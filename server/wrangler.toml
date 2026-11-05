@@ -1,0 +1,12 @@
+name = "securecode"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ALLOWED_ORIGIN = "https://goulartmaia.github.io"
+# MODEL = "claude-opus-5-5"   # uncomment and change to use another model
+
+[[kv_namespaces]]
+binding = "LOGS"
+id = "PASTE_THE_ID_FROM_kv_namespace_create"

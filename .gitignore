@@ -1,0 +1,8 @@
+node_modules/
+.wrangler/
+.DS_Store
+SecureCode/
+SecureCode.zip
+report/
+M3_PersonB_sections.md
+.claude/
