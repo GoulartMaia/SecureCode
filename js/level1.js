@@ -12,6 +12,7 @@ VIEWS.refresher=()=>{
  log('refresher_start');
  h(`<h2>SQL refresher</h2><p class="muted">A quick reminder, with no points and no timer.</p>${REFRESHER}
  <div class="row"><button class="btn" id="r">Continue</button></div>`);
+ if(PREVIEW)return $('r').remove();
  $('r').onclick=()=>{P.done.refresher=1;save();log('refresher_end');VIEWS.level1()};
 };
 
@@ -110,10 +111,11 @@ VIEWS.level1=()=>{
  const learn=()=>{
   const box=sandbox(()=>{P.tried1=1;save();const b=$('learndone');if(b){b.disabled=false;b.textContent="I'm ready for the questions"}});
   learnStage({level:'level1',title:'Level 1: How input becomes code',html:L1_LESSON+'<div id="sandbox"></div>',examples:L1_EXAMPLES,onDone:quiz,
-   onMount:b=>{$('sandbox').append(box.el);box.mount();if(!P.tried1){b.disabled=true;b.textContent='Try the attack on both versions first'}}});
+   onMount:b=>{$('sandbox').append(box.el);box.mount();if(!P.tried1&&!PREVIEW){b.disabled=true;b.textContent='Try the attack on both versions first'}}});
  };
  const quiz=()=>runQuiz({level:'level1',title:'Level 1: Understand',questions:L1_QUESTIONS,
   review:()=>L1_LESSON.replace(/<p>Try it below.*?<\/p>/s,'')+(isAI()?'':L1_EXAMPLES)+REFRESHER,
   onDone:()=>finishLevel('level1','You now know how typed text can change a query.')});
+ if(PREVIEW)return STAGE==='questions'?quiz():STAGE==='intro'?diary():learn();
  if(P.deadline.level1)Date.now()<P.deadline.level1?learn():quiz();else diary();
 };

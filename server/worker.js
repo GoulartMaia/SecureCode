@@ -43,6 +43,14 @@ async function chat(request, env) {
   return json(env, { reply });
 }
 
+// Gives each new student the group with fewer students so far, so the two groups stay equal.
+async function assign(env) {
+  const [ai, control] = await Promise.all([env.LOGS.get("count:ai"), env.LOGS.get("count:control")]).then((v) => v.map(Number));
+  const group = ai === control ? (Math.random() < 0.5 ? "ai" : "control") : ai < control ? "ai" : "control";
+  await env.LOGS.put(`count:${group}`, String((group === "ai" ? ai : control) + 1));
+  return json(env, { group, ai: ai + (group === "ai"), control: control + (group === "control") });
+}
+
 async function saveLog(request, env) {
   const events = JSON.parse(await request.text());
   if (!Array.isArray(events) || events.length > 50) return json(env, { error: "invalid log" }, 400);
@@ -57,7 +65,7 @@ async function readLogs(url, env) {
   let cursor;
   do {
     const page = await env.LOGS.list({ cursor });
-    for (const k of page.keys) out.push(...JSON.parse(await env.LOGS.get(k.name)));
+    for (const k of page.keys.filter((k) => !k.name.startsWith("count:"))) out.push(...JSON.parse(await env.LOGS.get(k.name)));
     cursor = page.list_complete ? undefined : page.cursor;
   } while (cursor);
   return json(env, out);
@@ -69,6 +77,7 @@ export default {
     const url = new URL(request.url);
     try {
       if (request.method === "POST" && url.pathname === "/chat") return await chat(request, env);
+      if (request.method === "POST" && url.pathname === "/assign") return await assign(env);
       if (request.method === "POST" && url.pathname === "/log") return await saveLog(request, env);
       if (request.method === "GET" && url.pathname === "/logs") return await readLogs(url, env);
       return json(env, { error: "not found" }, 404);

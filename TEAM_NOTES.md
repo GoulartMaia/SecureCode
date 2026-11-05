@@ -17,14 +17,19 @@ Define `VIEWS.level3 = () => { ... }` in `js/level3.js`, and it appears on the m
 Each question also needs `prompt` (plain text) and `key` (the answer). Only the chatbot sees these.
 
 ## Pretest, post-test, consent (E)
-Add the views in a new file and register them in `LEVELS` in `js/core.js`. `welcome()` in `core.js` is where the participant code is entered, so consent and the pretest can go right after it.
+Add the views in a new file and register them in `LEVELS` in `js/core.js`. `welcome()` in `core.js` is the start page, so consent and the pretest can go right after it.
+
+## Start page and passwords
+- `student`: starts the lesson in the AI or no-AI version. The server gives the group with fewer students so far. Without the server it's a coin flip, so the groups may not be equal.
+- `teacher`: shows both versions side by side, level by level. Nothing is saved or logged, and there are no time limits.
+
+The passwords are in the public code, so they only keep the two doors apart. They aren't real security.
+
+Students who start but don't finish still count towards their group, so check the numbers while recruiting.
 
 ## Testing
 - `index.html?group=ai` or `?group=control` forces a version.
-- `?reset=1` clears your progress.
-
-## Groups
-Participant codes decide the group: odd = AI, even = no AI. Use SC01 to SC20, and hand them out in shuffled order.
+- `?reset=1` clears your progress. Do this between people on the same computer.
 
 ## Connecting the chatbot and logs
 ```bash

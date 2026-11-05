@@ -2,20 +2,24 @@
 const params=new URLSearchParams(location.search);
 const isLocal=['localhost','127.0.0.1'].includes(location.hostname);
 const api=(isLocal&&params.get('api'))||API_URL;
+const PREVIEW=['ai','control'].includes(params.get('preview'))?params.get('preview'):null;
+const STAGE=params.get('stage');
 const app=()=>document.getElementById('app');
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const h=html=>{app().innerHTML=html;window.scrollTo(0,0)};
 const fresh=()=>({code:null,group:null,done:{},points:0,q:{},deadline:{},queue:[]});
 let P=fresh();
-try{P=Object.assign(fresh(),JSON.parse(localStorage.getItem('sc2')||'{}'))}catch(e){}
-const save=()=>{try{localStorage.setItem('sc2',JSON.stringify(P))}catch(e){}};
+if(PREVIEW){P.code='PREVIEW';P.group=PREVIEW}
+else try{P=Object.assign(fresh(),JSON.parse(localStorage.getItem('sc2')||'{}'))}catch(e){}
+const save=()=>{if(PREVIEW)return;try{localStorage.setItem('sc2',JSON.stringify(P))}catch(e){}};
 const done=id=>!!P.done[id];
 const updPts=()=>{$('pts').textContent=P.points};
 const addPoints=n=>{P.points+=n;save();updPts()};
 
 /* ---------- logging: every event stays queued until the server has stored it ---------- */
 function log(type,data={}){
+ if(PREVIEW)return;
  P.queue.push({t:new Date().toISOString(),code:P.code,group:P.group,type,...data});save();flush();
 }
 let flushing=false;
@@ -30,9 +34,17 @@ async function flush(){
 }
 addEventListener('pagehide',flush);
 
-/* ---------- group from the participant code: odd = AI, even = no AI.
-   Hand the codes out in shuffled order, so that the assignment is random and balanced 10/10. ---------- */
-const groupOf=code=>parseInt(code.match(/\d+$/)[0],10)%2?'ai':'control';
+/* ---------- assignment: the server gives the group with fewer students so far, so the groups stay equal.
+   If the server can't be reached, it falls back to a coin flip, which is not guaranteed to be balanced. ---------- */
+const STUDENT_PASSWORD='student',TEACHER_PASSWORD='teacher';
+async function assignGroup(){
+ if(api)try{
+  const r=await fetch(api+'/assign',{method:'POST'});
+  const d=await r.json();
+  if(r.ok&&['ai','control'].includes(d.group))return {group:d.group,how:'balanced'};
+ }catch(e){}
+ return {group:Math.random()<.5?'ai':'control',how:'coin_flip'};
+}
 const isAI=()=>P.group==='ai';
 
 /* ---------- map ---------- */
@@ -44,25 +56,64 @@ const LEVELS=[
  {id:'level4',name:'Level 4: Fix',sub:'Repair the code',need:'level3'}
 ];
 const VIEWS={};
-function go(id){(VIEWS[id]||map)()}
+function go(id){if(inTeacher||PREVIEW)return;if(!P.code)return welcome();(VIEWS[id]||map)()}
 function start(){
+ if(PREVIEW)return startPreview();
  if(params.get('reset')==='1'){try{localStorage.removeItem('sc2')}catch(e){}P=fresh()}
  const forced=params.get('group');
  if(['ai','control'].includes(forced)){P.group=forced;P.code=P.code||'TEST'+forced;save()}
- updPts();flush();P.code?map():welcome();
+ updPts();flush();
+ let teacherOn=false;try{teacherOn=sessionStorage.getItem('sc-teacher')==='1'}catch(e){}
+ if(teacherOn)return teacher();
+ P.code?map():welcome();
 }
 function welcome(){
  h(`<section class="hero"><h1>Secure<span style="color:var(--teal)">Code</span></h1>
  <p>Learn how SQL injection works by doing it: first you see why the lock opens, then you learn to spot the weak spots, attack them and fix them.</p></section>
- <label for="pc">Your participant code</label><input id="pc" type="text" autocomplete="off" placeholder="e.g. SC07">
+ <label for="pw">Password</label><input id="pw" type="password" autocomplete="off">
  <div class="row"><button class="btn" id="go">Start</button></div><div id="out" aria-live="polite"></div>`);
- const submit=()=>{
-  const c=$('pc').value.trim();
-  if(!/^[A-Za-z]{0,6}\d{1,4}$/.test(c)){$('out').innerHTML='<div class="msg bad">Please enter the code you were given.</div>';return}
-  P.code=c.toUpperCase();P.group=groupOf(c);save();log('start');map();
+ const submit=async()=>{
+  const pw=$('pw').value.trim().toLowerCase();
+  if(pw===TEACHER_PASSWORD){try{sessionStorage.setItem('sc-teacher','1')}catch(e){}return teacher()}
+  if(pw!==STUDENT_PASSWORD){$('out').innerHTML='<div class="msg bad">That password is not right.</div>';return}
+  $('go').disabled=true;
+  const {group,how}=await assignGroup();
+  P.code='S'+crypto.randomUUID().slice(0,8);P.group=group;save();log('start',{assignment:how});map();
  };
- $('go').onclick=submit;$('pc').onkeydown=e=>{if(e.key==='Enter')submit()};
+ $('go').onclick=submit;$('pw').onkeydown=e=>{if(e.key==='Enter')submit()};
 }
+
+/* ---------- teacher view: both versions side by side, one level at a time.
+   Each side is this same site in preview mode: nothing is saved or logged, and there are no time limits. ---------- */
+let inTeacher=false;
+const previewUrl=(v,level,stage)=>{
+ const q=new URLSearchParams({preview:v,level,stage});
+ if(isLocal&&params.get('api'))q.set('api',params.get('api'));
+ return '?'+q;
+};
+const stagesOf=id=>id==='refresher'?[]:id==='level1'?[['intro','Diary'],['lesson','Lesson'],['questions','Questions']]:[['lesson','Lesson'],['questions','Questions']];
+function teacher(){
+ inTeacher=true;document.body.classList.add('teacher');
+ let level='refresher',stage='lesson';
+ const draw=()=>{
+  const stages=stagesOf(level);
+  if(stages.length&&!stages.some(x=>x[0]===stage))stage='lesson';
+  h(`<div class="tbar"><div class="tabs" role="group" aria-label="Level">${LEVELS.map(l=>`<button class="tab ${l.id===level?'on':''}" data-l="${l.id}" ${VIEWS[l.id]?'':'disabled'}>${l.name.split(':')[0]}</button>`).join('')}</div>
+  <div class="tabs" role="group" aria-label="Part">${stages.map(x=>`<button class="tab ${x[0]===stage?'on':''}" data-s="${x[0]}">${x[1]}</button>`).join('')}</div>
+  <button class="tab" id="texit">Exit</button></div>
+  <div class="split">${[['ai','AI version'],['control','No-AI version']].map(([v,n])=>`<section><h3>${n}</h3><iframe title="${n}" src="${previewUrl(v,level,stage)}"></iframe></section>`).join('')}</div>`);
+  app().querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{level=b.dataset.l;stage=level==='level1'?'intro':'lesson';draw()});
+  app().querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{stage=b.dataset.s;draw()});
+  $('texit').onclick=()=>{try{sessionStorage.removeItem('sc-teacher')}catch(e){}inTeacher=false;document.body.classList.remove('teacher');P.code?map():welcome()};
+ };
+ draw();
+}
+function startPreview(){
+ document.body.classList.add('preview');updPts();
+ const v=VIEWS[params.get('level')];
+ v?v():h('<p class="muted">This level is not built yet.</p>');
+}
+
 function map(){
  h(`<h2>SQL Injection</h2><p class="muted">Finish one level to open the next.</p>
  <ul class="path">${LEVELS.map(l=>{
@@ -72,6 +123,7 @@ function map(){
   <span class="tag">${done(l.id)?'Done':!ready?'Soon':open?'Play':'Locked'}</span></button></li>`}).join('')}</ul>`);
 }
 function finishLevel(id,msg=''){
+ if(PREVIEW)return h(`<h2>End of this level</h2><p class="muted">Pick another level at the top of the page.</p>`);
  P.done[id]=1;save();log('level_done',{level:id,points:P.points});
  const next=LEVELS[LEVELS.findIndex(l=>l.id===id)+1];
  h(`<h2>${LEVELS.find(l=>l.id===id).name} complete</h2><div class="msg good">${msg||'Nice work.'} You have <b>${P.points}</b> points.</div>
@@ -82,7 +134,8 @@ function finishLevel(id,msg=''){
    no-AI group: text + worked examples. AI group: text + chatbot. ---------- */
 function learnStage({level,title,html,examples,seconds,onDone,onMount}){
  seconds=seconds||LEARN_SECONDS[level];
- if(!P.deadline[level]){P.deadline[level]=Date.now()+seconds*1000;save();log('learn_start',{level})}
+ if(PREVIEW&&STAGE==='questions')return onDone();
+ if(!PREVIEW&&!P.deadline[level]){P.deadline[level]=Date.now()+seconds*1000;save();log('learn_start',{level})}
  const left=()=>Math.max(0,Math.round((P.deadline[level]-Date.now())/1000));
  h(`<div class="toprow"><h2 style="margin:0">${title}</h2><span class="timer" id="timer" role="timer"></span></div>
  ${html}
@@ -93,12 +146,13 @@ function learnStage({level,title,html,examples,seconds,onDone,onMount}){
  let over=false;
  const finish=(why)=>{if(over)return;over=true;clearInterval(tick);log('learn_end',{level,why,secondsLeft:left()});onDone()};
  const show=()=>{
+  if(PREVIEW){$('timer').textContent=`Limit: ${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`;return}
   const s=left(),el=$('timer');
   if(!el){clearInterval(tick);return}
   el.textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;el.classList.toggle('low',s<=20);
   if(s<=0)finish('timeout');
  };
- const tick=setInterval(show,500);show();
+ const tick=PREVIEW?null:setInterval(show,500);show();
  $('learndone').onclick=()=>finish('button');
  if(onMount)onMount($('learndone'));
 }
@@ -161,9 +215,10 @@ function runQuiz({level,title,questions,review,onDone}){
   log('q_start',{level,q:q.id});
   h(`<div class="toprow"><h2 style="margin:0">${title}</h2><span class="muted">Question ${i+1} of ${questions.length}</span></div>
   <div class="q">${q.text}</div><div id="ans"></div>
-  <div class="row"><button class="btn" id="check" disabled>Check answer</button></div>
+  <div class="row"><button class="btn" id="check" disabled>Check answer</button>${PREVIEW?'<button class="btn alt" id="skipq">Skip to next question</button>':''}</div>
   <div id="out" aria-live="polite"></div><div id="qhelp"></div>
   <details><summary>Review the lesson</summary>${review()}</details>`);
+  if(PREVIEW)$('skipq').onclick=()=>{P.q[q.id]=0;next()};
   let current=null;
   const setAnswer=(v)=>{current=v;$('check').disabled=v===null||v===undefined};
   if(q.options){
@@ -184,7 +239,7 @@ function runQuiz({level,title,questions,review,onDone}){
    attempts++;const right=isRight(current);tried.push(describe(current));
    log('q_attempt',{level,q:q.id,attempt:attempts,answer:describe(current),right,help});
    if(!right&&attempts<MAX_ATTEMPTS){$('out').innerHTML=`<div class="msg bad">Not quite. You have one more try.</div>`;return}
-   over=true;lock();$('check').remove();
+   over=true;lock();$('check').remove();$('skipq')?.remove();
    const pts=right?Math.max(1,POINTS_PER_QUESTION-help-(attempts-1)):0;
    P.q[q.id]=pts;addPoints(pts);
    log('q_end',{level,q:q.id,right,attempts,help,points:pts,seconds:Math.round((Date.now()-started)/1000)});
