@@ -12,7 +12,7 @@ The proposed survey interface will be accessible through a URL and QR code, with
 
 Study flow, in this order:
 
-1. Start page with draft study information and a consent checkbox (no names, emails or student numbers).
+1. Start page with draft study information, a list of the data collected, and an explicit consent checkbox with "Agree and continue" and "I do not agree" buttons (no names, emails or student numbers). Declining creates no participant and records nothing. The consent version is stored with the participant and sent in the `start` log event.
 2. A pseudonymous participant code (`SC-XXXX-XXXX`, with a check character to catch typing mistakes) is generated and shown.
 3. Starting check (technical pre-test, 6 questions).
 4. The open diary and the SQL refresher (unchanged).
@@ -41,7 +41,8 @@ Participant code and resuming:
 Assignment:
 
 - Participants never choose their group, and the QR code and entry URL contain no condition.
-- Demo procedure: permuted blocks of four (two AI, two no-AI) drawn with `crypto.getRandomValues`, balanced only within one browser. The real study must assign on the server (below).
+- The server assigns each new participant to the group with fewer students, counting those who finished the post-test and those who started in the last 2 hours. Students who drop out stop counting after 2 hours, so the next students refill their group. Current numbers are at `/counts` on the server.
+- If the server can't be reached, the site falls back to permuted blocks of four, balanced only within one browser. The stored `assignment_method` shows which one was used.
 - The existing `?group=ai` / `?group=control` test parameters still exist for the team. They must be disabled or restricted before recruitment, because they let anyone choose a version.
 
 Team preview:
@@ -57,7 +58,9 @@ Demo data (`?demo-data=1`):
 
 Storage notice shown on every assessment screen:
 
-> Milestone demo: responses are stored only in this browser. They are not sent to the research team and will not sync to another device.
+> Milestone demo: your check and questionnaire answers are stored only in this browser. They are not sent to the research team and will not sync to another device. Your lesson activity is sent to the team's server.
+
+The last sentence appears only when the site has a server address.
 
 The existing lesson keeps its current behaviour. On the team's GitHub Pages site, lesson events and AI chat messages are still sent to the team's Cloudflare Worker, as before. Test answers are never sent there. The hosted demo build has the server address removed, so its AI version shows "The assistant is not connected yet" and sends no lesson logs.
 
@@ -107,7 +110,6 @@ Server behaviour:
 
 - Submit an attempt and all its responses in one transaction, with server-side timestamps and input validation (lengths, known question IDs, phase).
 - Idempotent retries: the client sends a submission key, and repeating it returns the stored result. A finalized attempt can never be overwritten.
-- Assign the condition on the server, for example with block randomization, and keep it with the participant record. Never trust a condition in the URL or a browser field.
 - Serve the post-test form only to participants whose pre-test is submitted and whose lesson is complete.
 - Enforce participant ownership with a server-issued resume token, so a typed code cannot read or change someone else's attempt and participants can never list other responses.
 - Use real authentication and authorization for researcher access, separate from the lesson's teacher password.
@@ -143,7 +145,7 @@ Checked in Chromium on a local server, with the lesson server blocked or disconn
 - "I don't know": fields disabled, typed text kept on screen, nothing submitted for that item.
 - Duplicate submission: a double click and a second tab produced one submitted attempt; the second tab reported that nothing was changed.
 - Participant code: the same code was attached to the pre-test, lesson log events and post-test; resume by code worked in the same browser, and an unknown valid code showed the cross-device limitation message.
-- Demo assignment: four new participants in one browser were split two AI and two no-AI.
+- Fallback assignment: four new participants in one browser were split two AI and two no-AI.
 - Exports: JSON and CSV downloaded; parsing the CSV gave back exactly the stored text (quotes, tab, line breaks, a leading `=`), with 0 mismatches. Every item was "not graded" with an empty score.
 - The demo storage notice appears on the start page and on every assessment screen, and no screen claims centralized storage.
 - The existing diary, refresher, Levels 1-4 and the teacher view still load in both versions; the AI version still shows the assistant and the no-AI version still shows worked examples. The teacher view did not create or read any stored responses.

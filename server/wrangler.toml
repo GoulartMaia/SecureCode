@@ -5,6 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ALLOWED_ORIGIN = "https://goulartmaia.github.io"
+ASSIGN_ROUND = "round-1"
 # MODEL = "@cf/google/gemma-4-26b-a4b-it"   # uncomment and change to use another model
 
 [ai]
@@ -13,3 +14,11 @@ binding = "AI"
 [[kv_namespaces]]
 binding = "LOGS"
 id = "b7cd7d3e3d134c418a31777c552049a7"
+
+[[durable_objects.bindings]]
+name = "ASSIGNER"
+class_name = "Assigner"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Assigner"]

@@ -4,7 +4,7 @@
    A later ApiStudyStorage should implement the same async methods against the real backend (see docs/ASSESSMENT_MILESTONE.md),
    where the server assigns conditions, timestamps submissions and refuses to overwrite finalized attempts. ---------- */
 const STUDY_VERSION='securecode-study-0.1';
-const CONSENT_VERSION='draft-consent-0.1';
+const CONSENT_VERSION='draft-consent-0.2';
 const STORE_KEY='sc-study-v1';
 const CODE_ALPHABET='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
@@ -28,19 +28,21 @@ class LocalDemoStudyStorage{
  _empty(){return {schema:1,participants:{},attempts:{},experience:{},allocation:[]}}
  _write(db){localStorage.setItem(STORE_KEY,JSON.stringify(db))}
  available(){try{localStorage.setItem(STORE_KEY+'-probe','1');localStorage.removeItem(STORE_KEY+'-probe');return true}catch(e){return false}}
- /* Demo assignment procedure: permuted blocks of four (two AI, two no-AI) drawn with crypto randomness.
-    Balanced only within this browser. The real study must assign on the server (see the backend plan). */
+ /* Fallback if the server can't be reached: permuted blocks of four (two AI, two no-AI) drawn with crypto randomness.
+    Balanced only within this browser. The assignment method is stored, so these participants can be identified. */
  _nextCondition(db){
   if(!db.allocation.length){const b=['ai','ai','control','control'];
    for(let i=b.length-1;i>0;i--){const j=crypto.getRandomValues(new Uint32Array(1))[0]%(i+1);[b[i],b[j]]=[b[j],b[i]]}
    db.allocation=b}
   return db.allocation.shift();
  }
- async createParticipant({consentVersion}){
-  const db=this._read();let code;do code=newParticipantCode();while(db.participants[code]);
-  const condition=this._nextCondition(db);
+ async createParticipant({consentVersion,assign}){
+  let db=this._read();let code;do code=newParticipantCode();while(db.participants[code]);
+  const assigned=assign?await assign(code):null;
+  db=this._read();
+  const condition=assigned||this._nextCondition(db);
   db.participants[code]={participant_code:code,consent_version:consentVersion,consent_status:'agreed',assigned_condition:condition,
-   assignment_method:'local_demo_permuted_block_4',study_version:STUDY_VERSION,created_at:new Date().toISOString(),lesson_state:null};
+   assignment_method:assigned?'server_balanced':'local_demo_permuted_block_4',study_version:STUDY_VERSION,created_at:new Date().toISOString(),lesson_state:null};
   this._write(db);return db.participants[code];
  }
  /* Used for test links such as ?group=ai, so their attempts are still labelled. */

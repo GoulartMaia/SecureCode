@@ -1,7 +1,7 @@
 /* ---------- Study flow: consent, participant code, technical pre-test and post-test, optional experience questions.
    The tests are identical for both groups and show no hints, assistant, lesson links, answer feedback or scores.
    Responses go through studyStore (js/study-storage.js), which in this milestone keeps them in this browser only. ---------- */
-const DEMO_NOTICE='Milestone demo: responses are stored only in this browser. They are not sent to the research team and will not sync to another device.';
+const DEMO_NOTICE='Milestone demo: your check and questionnaire answers are stored only in this browser. They are not sent to the research team and will not sync to another device.'+(api?' Your lesson activity is sent to the team’s server.':'');
 const TEST_INTRO='This short check asks what you can currently do with database-query code. It is not a course grade. Answer without AI, notes, or outside help. If you do not know an answer, select “I don’t know” rather than looking it up. No answer feedback will be shown during this activity.';
 const TEST_ASSUMPTIONS='All examples are fictional and must stay inside this learning activity. Python examples use Python’s sqlite3 interface. SQL uses SQLite syntax. Names and inputs shown in examples are case-sensitive for this activity.';
 const TIMING_NOTE='There is no time limit. You can go back and change answers until you submit.';
@@ -37,12 +37,22 @@ function studyWelcome(){
  <ul class="info">
  <li><b>What you will do:</b> a short starting check, an interactive lesson with practice exercises, a short final check and an optional questionnaire about your experience.</li>
  <li><b>Duration:</b> to be confirmed after piloting.</li>
- <li><b>What is recorded:</b> a random participant code, your answers, how long each part takes, and your activity in the lesson. Some lesson versions include an assistant; messages typed there are part of the lesson activity.</li>
- <li><b>What is not asked:</b> your name, email or student number. Please do not type personal information anywhere.</li>
- <li><b>Your choice:</b> taking part is voluntary, is not graded, and you can stop at any time. How to withdraw data will be described in the final information sheet.</li>
+ <li><b>Your choice:</b> taking part is voluntary, is not graded, and you can stop at any time by closing the page. How to withdraw data will be described in the final information sheet.</li>
  <li><b>Device:</b> a phone works, but writing code may be easier on a laptop.</li></ul>
- <label class="check"><input type="checkbox" id="consent"> I have read the study information and agree to take part.</label>
- <div class="row"><button class="btn" id="begin" disabled>Start</button></div><div id="out" aria-live="polite"></div></section>
+ <h3 id="datah">Data we collect</h3>
+ <p>If you take part, we collect the following data for this study:</p>
+ <ul class="info" aria-labelledby="datah">
+ <li><b>Your code and lesson version:</b> a random participant code and the version of the lesson you are given. Some versions include an assistant.</li>
+ <li><b>Your answers:</b> your answers to the starting check, the lesson exercises, the final check and the optional questionnaire.</li>
+ <li><b>What you type in the lesson:</b> this includes the practice login boxes and, if your version has an assistant, your messages and its replies.</li>
+ <li><b>Your activity:</b> how long each part takes, your attempts, the help you use and your points.</li></ul>
+ <p><b>Where it goes:</b> ${api?'your lesson activity is sent to the team’s server, hosted by Cloudflare. Messages to the assistant also go to Cloudflare’s AI service, which writes the replies. In this demo, your check and questionnaire answers stay in this browser.':'in this demo, your data stays in this browser.'}</p>
+ <p><b>What we do not ask for:</b> your name, email or student number. Our study records do not include your IP address, but the services that host the site (GitHub and Cloudflare) handle it to deliver the pages. <b>Please do not type personal information or a real password anywhere,</b> including the practice login boxes.</p>
+ <p><b>How it is used:</b> the research team uses the data for a CS-411 Digital Education course project at EPFL. Your records are linked by your participant code, so they are pseudonymous, not fully anonymous. How long data is kept and who to contact will be described in the final information sheet.</p>
+ <h3>Your consent</h3>
+ <p>To continue, we need your consent to collect this data. If you do not agree, you will not take part, and nothing will be recorded.</p>
+ <label class="check"><input type="checkbox" id="consent"> I have read the study information. I agree to take part and consent to the collection and use of my data as described above.</label>
+ <div class="row"><button class="btn" id="begin" disabled>Agree and continue</button><button class="btn alt" id="decline">I do not agree</button></div><div id="out" aria-live="polite"></div></section>
  <details class="card"><summary>I already have a participant code</summary>
  <label for="rc">Participant code</label><input id="rc" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="SC-XXXX-XXXX">
  <div class="row"><button class="btn alt" id="resume">Continue</button></div><div id="rout" aria-live="polite"></div></details>
@@ -52,13 +62,14 @@ function studyWelcome(){
  <div class="row"><button class="btn alt" id="tgo">Open preview</button></div><div id="tout" aria-live="polite"></div></details>
  <p class="muted small"><a href="?demo-data=1">Milestone demo data in this browser (export or clear)</a></p>`);
  $('consent').onchange=()=>{$('begin').disabled=!$('consent').checked};
+ $('decline').onclick=consentDeclined;
  $('begin').onclick=async()=>{
   if(!$('consent').checked)return;
   if(!studyStore.available()){$('out').innerHTML='<div class="msg bad">This browser does not allow local storage, so the demo cannot save answers. Try another browser or turn off private mode.</div>';return}
   $('begin').disabled=true;
-  const p=await studyStore.createParticipant({consentVersion:CONSENT_VERSION});
+  const p=await studyStore.createParticipant({consentVersion:CONSENT_VERSION,assign:assignGroup});
   P=fresh();P.code=p.participant_code;P.group=p.assigned_condition;save();
-  log('start',{assignment:p.assignment_method});
+  log('start',{assignment:p.assignment_method,consent:CONSENT_VERSION});
   showCode(p.participant_code);
  };
  const resume=async()=>{
@@ -73,6 +84,13 @@ function studyWelcome(){
  const tgo=()=>{if($('pw').value.trim().toLowerCase()===TEACHER_PASSWORD){try{sessionStorage.setItem('sc-teacher','1')}catch(e){}return teacher()}
   $('tout').innerHTML='<div class="msg bad">That password is not right.</div>'};
  $('tgo').onclick=tgo;$('pw').onkeydown=e=>{if(e.key==='Enter')tgo()};
+}
+/* Declining creates no participant and logs nothing. */
+function consentDeclined(){
+ h(`<h2 tabindex="-1" id="ch">Thank you for considering the study</h2>
+ <p>You chose not to take part, so no participant code was created and nothing was recorded. You can close this page.</p>
+ <div class="row"><button class="btn alt" id="reread">Back to the study information</button></div>`);
+ $('ch').focus();$('reread').onclick=studyWelcome;
 }
 function showCode(code){
  h(`<h2 tabindex="-1" id="ch">Your participant code</h2>
@@ -204,6 +222,7 @@ async function runTest(phase){
    try{
     const r=await studyStore.submitAttempt(attempt.attempt_id,{review_duration_ms:d.durations.review||0,items:responses},d.submission_key);
     P.done[phase==='pre'?'pretest':'posttest']=1;save();activeRunner?.();activeRunner=null;
+    if(phase==='post')markFinished();
     acknowledge(r.duplicate);
    }catch(e){btn.disabled=false;btn.textContent='Submit answers';$('out').innerHTML='<div class="msg bad">The answers could not be saved. Please try again.</div>'}
   };
@@ -242,7 +261,7 @@ VIEWS.experience=()=>{
  <div class="row"><button type="submit" class="btn" id="esub">${PREVIEW?'Submit (disabled in preview)':'Submit'}</button>${PREVIEW?'':'<button type="button" class="btn alt" id="eskip">Skip</button>'}</div></form>${PREVIEW?'':notice()}`);
  $('qh').focus();
  if(PREVIEW){$('esub').disabled=true;return}
- const finish=async(answers)=>{$('esub').disabled=true;await studyStore.saveExperience(P.code,answers);P.done.experience=1;save();complete()};
+ const finish=async(answers)=>{$('esub').disabled=true;markFinished();await studyStore.saveExperience(P.code,answers);P.done.experience=1;save();complete()};
  $('exp').onsubmit=e=>{e.preventDefault();const fd=new FormData($('exp'));
   finish(Object.fromEntries([[EXP_OPEN.id,$(EXP_OPEN.id).value||null],...EXP.map(q=>[q.id,fd.get(q.id)||null]),['EXP-05',$('EXP-05').value||null]]))};
  $('eskip').onclick=()=>finish({skipped:true});

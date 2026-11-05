@@ -41,16 +41,25 @@ async function flush(){
 }
 addEventListener('pagehide',flush);
 
-/* ---------- assignment: the server gives the group with fewer students so far, so the groups stay equal.
-   If the server can't be reached, it falls back to a coin flip, which is not guaranteed to be balanced. ---------- */
+/* ---------- assignment: the server gives the group with fewer students so far, counting those who
+   finished the post-test and those who started recently, so the groups stay equal.
+   Returns null if the server can't be reached, and the study flow then falls back to local assignment. ---------- */
 const TEACHER_PASSWORD='teacher';
-async function assignGroup(){
+async function assignGroup(code){
  if(api)try{
-  const r=await fetch(api+'/assign',{method:'POST'});
+  const r=await fetch(api+'/assign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code}),signal:AbortSignal.timeout(8000)});
   const d=await r.json();
-  if(r.ok&&['ai','control'].includes(d.group))return {group:d.group,how:'balanced'};
+  if(r.ok&&['ai','control'].includes(d.group))return d.group;
  }catch(e){}
- return {group:Math.random()<.5?'ai':'control',how:'coin_flip'};
+ return null;
+}
+/* Tells the server this student finished, so they keep counting towards their group for good. */
+async function markFinished(){
+ if(!api||P.finishedSent||!/^SC-/.test(P.code||''))return;
+ try{
+  const r=await fetch(api+'/finish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:P.code}),keepalive:true});
+  if(r.ok){P.finishedSent=1;save()}
+ }catch(e){}
 }
 const isAI=()=>P.group==='ai';
 

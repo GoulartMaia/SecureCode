@@ -1,4 +1,5 @@
 // Connects the chatbot to Workers AI, keeps the groups equal, and stores the study logs.
+import { DurableObject } from "cloudflare:workers";
 
 const SYSTEM = `You are the tutor in SecureCode, a 30-minute lesson for EPFL undergraduates on SQL injection. All practice happens in a simulation.
 
@@ -35,12 +36,48 @@ async function chat(request, env) {
   return json(env, { reply });
 }
 
-// Gives each new student the group with fewer students so far, so the two groups stay equal.
-async function assign(env) {
-  const [ai, control] = await Promise.all([env.LOGS.get("count:ai"), env.LOGS.get("count:control")]).then((v) => v.map(Number));
-  const group = ai === control ? (Math.random() < 0.5 ? "ai" : "control") : ai < control ? "ai" : "control";
-  await env.LOGS.put(`count:${group}`, String((group === "ai" ? ai : control) + 1));
-  return json(env, { group, ai: ai + (group === "ai"), control: control + (group === "control") });
+// Keeps the two groups equal. Every request goes through this one object in turn, so two students
+// starting at the same moment can't both read an old count.
+// A group's count is its finished students plus those who started recently. Students who start and
+// never finish stop counting after ACTIVE_MS, so the next students refill the group they left.
+export class Assigner extends DurableObject {
+  async counts() {
+    const activeMs = Number(this.env.ACTIVE_MS) || 2 * 60 * 60 * 1000;
+    const c = { ai: { finished: 0, inProgress: 0 }, control: { finished: 0, inProgress: 0 } };
+    const all = await this.ctx.storage.list({ prefix: "p:" });
+    for (const p of all.values()) {
+      if (p.finished) c[p.group].finished++;
+      else if (Date.now() - p.started < activeMs) c[p.group].inProgress++;
+    }
+    return c;
+  }
+  async assign(code) {
+    const known = await this.ctx.storage.get(`p:${code}`);
+    if (known) return known.group;
+    const c = await this.counts();
+    const ai = c.ai.finished + c.ai.inProgress;
+    const control = c.control.finished + c.control.inProgress;
+    const group = ai === control ? (Math.random() < 0.5 ? "ai" : "control") : ai < control ? "ai" : "control";
+    await this.ctx.storage.put(`p:${code}`, { group, started: Date.now(), finished: false });
+    return group;
+  }
+  async finish(code) {
+    const known = await this.ctx.storage.get(`p:${code}`);
+    if (known) await this.ctx.storage.put(`p:${code}`, { ...known, finished: true });
+    return !!known;
+  }
+}
+
+// To restart the count before real participants, change ASSIGN_ROUND in wrangler.toml and deploy.
+const assigner = (env) => env.ASSIGNER.get(env.ASSIGNER.idFromName(env.ASSIGN_ROUND || "round-1"));
+const PARTICIPANT_CODE = /^SC-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
+
+async function assignment(request, env, action) {
+  const { code } = await request.json();
+  if (!PARTICIPANT_CODE.test(code ?? "")) return json(env, { error: "invalid code" }, 400);
+  const stub = assigner(env);
+  if (action === "finish") return json(env, { ok: await stub.finish(code) });
+  return json(env, { group: await stub.assign(code) });
 }
 
 async function saveLog(request, env) {
@@ -69,7 +106,9 @@ export default {
     const url = new URL(request.url);
     try {
       if (request.method === "POST" && url.pathname === "/chat") return await chat(request, env);
-      if (request.method === "POST" && url.pathname === "/assign") return await assign(env);
+      if (request.method === "POST" && url.pathname === "/assign") return await assignment(request, env, "assign");
+      if (request.method === "POST" && url.pathname === "/finish") return await assignment(request, env, "finish");
+      if (request.method === "GET" && url.pathname === "/counts") return json(env, await assigner(env).counts());
       if (request.method === "POST" && url.pathname === "/log") return await saveLog(request, env);
       if (request.method === "GET" && url.pathname === "/logs") return await readLogs(url, env);
       return json(env, { error: "not found" }, 404);

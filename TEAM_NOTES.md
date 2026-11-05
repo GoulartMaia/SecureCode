@@ -59,7 +59,7 @@ The site gives everyone who answers 5 points, because keyword matching would be 
 
 The passwords are in the public code, so they only keep the two doors apart. They aren't real security.
 
-Students who start but don't finish still count towards their group, so check the numbers while recruiting.
+The server assigns each new student to the group with fewer students, counting those who finished the post-test and those who started in the last 2 hours. Students who drop out stop counting after 2 hours, so the next students refill their group. Current numbers: `https://securecode.securecode-server.workers.dev/counts`. To restart the count, change `ASSIGN_ROUND` in `server/wrangler.toml` and deploy.
 
 ## Testing
 - `index.html?group=ai` or `?group=control` forces a version.
