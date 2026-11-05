@@ -1,0 +1,40 @@
+/* Technical pre-test, form pre-v1. Participant-facing text only: no answer keys, scoring or level mapping here.
+   The private rubric is kept outside this repository. Inline `code` in strings is shown as code. */
+(window.SC_FORMS=window.SC_FORMS||{})['pre-v1']={
+ phase:'pre',version:'pre-v1',
+ questions:[
+  {id:'PRE-01',title:'Interpret a query',
+   body:[{p:'The `members` table contains several rows. A member named Nora exists, but her password is not `wrong`.'},
+    {code:"SELECT * FROM members\nWHERE name = 'Nora' AND password = 'wrong' OR '4' = '4';",lang:'SQL'},
+    {p:'Which rows does this query return? Explain briefly how you decided.'}],
+   fields:[{key:'a',kind:'text',label:'Your answer (one or two sentences)',rows:3}]},
+  {id:'PRE-02',title:'Locate the vulnerability',
+   body:[{p:'`code` comes from a URL parameter and is a string controlled by the visitor.'},
+    {code:"1  def find_item(code):\n2      code = code.replace(\"'\", \"\")\n3      sql = \"SELECT * FROM items WHERE id = \" + code\n4      return cursor.execute(sql).fetchall()",lang:'Python'},
+    {p:'Is this code protected against SQL injection? If not, identify the line where user input becomes part of the SQL text and briefly explain why the quote-removal step does or does not solve the problem.'}],
+   fields:[{key:'a',kind:'text',label:'Your answer',rows:4}]},
+  {id:'PRE-03',title:'Construct a numeric-input attack',
+   body:[{p:'In a fictional local simulation, `item_id` is inserted directly into this query:'},
+    {code:'sql = "SELECT * FROM items WHERE id = " + item_id',lang:'Python'},
+    {p:'Write one value for `item_id` that makes the query return every row, rather than just one item. Your input must contain no quotation marks; briefly explain its effect.'}],
+   fields:[{key:'a',kind:'line',label:'Value for item_id (one line)'},{key:'b',kind:'text',label:'Short explanation of its effect',rows:3}]},
+  {id:'PRE-04',title:'Reason about a UNION attack',
+   body:[{p:'A simulated search returns these columns:'},
+    {code:"SELECT title, category FROM documents WHERE owner = '<input>';",lang:'SQL'},
+    {p:'A second table is defined as:'},
+    {code:'accounts(id, username, password)',lang:'Table'},
+    {p:'An attacker tries to add rows from `accounts` using `UNION SELECT`.'}],
+   fields:[{key:'a',kind:'number',label:'How many output columns must the added SELECT return to match the first query?'},
+    {key:'b',kind:'text',label:'In SQLite, what does -- do to the SQL text that follows it on the same line?',rows:3}]},
+  {id:'PRE-05',title:'Repair a lookup',
+   body:[{p:'`name` and `city` are user-controlled strings.'},
+    {code:"sql = f\"SELECT * FROM members WHERE name = '{name}' AND city = '{city}'\"\nrows = cursor.execute(sql).fetchall()",lang:'Python'},
+    {p:"Rewrite these two lines to prevent SQL injection while keeping both search conditions. A legitimate name such as `O'Brien` must still work."}],
+   fields:[{key:'a',kind:'code',label:'Your rewritten code',rows:6}]},
+  {id:'PRE-06',title:'Repair a contains search',
+   body:[{p:'`term` is a user-controlled string.'},
+    {code:"sql = \"SELECT * FROM books WHERE title LIKE '%\" + term + \"%'\"\nrows = cursor.execute(sql).fetchall()",lang:'Python'},
+    {p:'Rewrite these two lines to prevent SQL injection while still finding titles that contain the entered term. For this question, assume `term` itself contains neither `%` nor `_`.'}],
+   fields:[{key:'a',kind:'code',label:'Your rewritten code',rows:6}]}
+ ]
+};

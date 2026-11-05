@@ -1,0 +1,40 @@
+/* Technical post-test, form post-v1. Loaded only after Level 4 is finished (or in the teacher preview).
+   Participant-facing text only: no answer keys, scoring or level mapping here. */
+(window.SC_FORMS=window.SC_FORMS||{})['post-v1']={
+ phase:'post',version:'post-v1',
+ questions:[
+  {id:'POST-01',title:'Interpret a query',
+   body:[{p:'The `staff` table contains several rows. A staff member named Iris exists, but her access code is not `invalid`.'},
+    {code:"SELECT * FROM staff\nWHERE name = 'Iris' AND access_code = 'invalid' OR '8' = '8';",lang:'SQL'},
+    {p:'Which rows does this query return? Explain briefly how you decided.'}],
+   fields:[{key:'a',kind:'text',label:'Your answer (one or two sentences)',rows:3}]},
+  {id:'POST-02',title:'Locate the vulnerability',
+   body:[{p:'`ticket_id` comes from a URL parameter and is a string controlled by the visitor.'},
+    {code:"1  def find_ticket(ticket_id):\n2      ticket_id = ticket_id.replace(\"'\", \"\")\n3      sql = \"SELECT * FROM tickets WHERE id = \" + ticket_id\n4      return cursor.execute(sql).fetchall()",lang:'Python'},
+    {p:'Is this code protected against SQL injection? If not, identify the line where user input becomes part of the SQL text and briefly explain why the quote-removal step does or does not solve the problem.'}],
+   fields:[{key:'a',kind:'text',label:'Your answer',rows:4}]},
+  {id:'POST-03',title:'Construct a numeric-input attack',
+   body:[{p:'In a fictional local simulation, `note_id` is inserted directly into this query:'},
+    {code:'sql = "SELECT * FROM notes WHERE id = " + note_id',lang:'Python'},
+    {p:'Write one value for `note_id` that makes the query return every row, rather than just one note. Your input must contain no quotation marks; briefly explain its effect.'}],
+   fields:[{key:'a',kind:'line',label:'Value for note_id (one line)'},{key:'b',kind:'text',label:'Short explanation of its effect',rows:3}]},
+  {id:'POST-04',title:'Reason about a UNION attack',
+   body:[{p:'A simulated search returns these columns:'},
+    {code:"SELECT subject, status FROM messages WHERE recipient = '<input>';",lang:'SQL'},
+    {p:'A second table is defined as:'},
+    {code:'profiles(id, display_name, access_code)',lang:'Table'},
+    {p:'An attacker tries to add rows from `profiles` using `UNION SELECT`.'}],
+   fields:[{key:'a',kind:'number',label:'How many output columns must the added SELECT return to match the first query?'},
+    {key:'b',kind:'text',label:'In SQLite, what does -- do to the SQL text that follows it on the same line?',rows:3}]},
+  {id:'POST-05',title:'Repair a lookup',
+   body:[{p:'`author` and `category` are user-controlled strings.'},
+    {code:"sql = f\"SELECT * FROM articles WHERE author = '{author}' AND category = '{category}'\"\nrows = cursor.execute(sql).fetchall()",lang:'Python'},
+    {p:"Rewrite these two lines to prevent SQL injection while keeping both search conditions. A legitimate author name such as `D'Angelo` must still work."}],
+   fields:[{key:'a',kind:'code',label:'Your rewritten code',rows:6}]},
+  {id:'POST-06',title:'Repair a contains search',
+   body:[{p:'`keyword` is a user-controlled string.'},
+    {code:"sql = \"SELECT * FROM films WHERE title LIKE '%\" + keyword + \"%'\"\nrows = cursor.execute(sql).fetchall()",lang:'Python'},
+    {p:'Rewrite these two lines to prevent SQL injection while still finding titles that contain the entered keyword. For this question, assume `keyword` itself contains neither `%` nor `_`.'}],
+   fields:[{key:'a',kind:'code',label:'Your rewritten code',rows:6}]}
+ ]
+};

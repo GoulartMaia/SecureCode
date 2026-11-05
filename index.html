@@ -85,6 +85,34 @@ body.teacher main{max-width:none;padding:0}body.teacher footer{display:none}
 body.preview header{display:none}body.preview footer{display:none}body.preview main{padding:16px 16px 40px}
 @media (prefers-color-scheme:dark){.tab.on{color:#04201c}}
 @media (max-width:900px){.split{grid-template-columns:1fr}.split section{border-right:0}.split iframe{height:80vh}}
+
+/* ---------- study flow and technical checks ---------- */
+body.assessing .keys{visibility:hidden}
+.notice{border-left:5px solid var(--key);background:var(--card);padding:10px 14px;border-radius:8px;font-size:.95rem;margin:16px 0}
+.eyebrow{margin:0 0 6px;color:var(--mut);font-weight:700;letter-spacing:.02em}
+.progress{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin:0 0 18px}.progress span{display:block;height:100%;background:var(--teal)}
+textarea{width:100%;padding:10px 12px;font:16px/1.45 system-ui,sans-serif;border:2px solid var(--line);border-radius:8px;background:#fff;color:#12262b;resize:vertical}
+textarea.mono,input.mono,.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+input[type=text].num{max-width:140px}
+input:disabled,textarea:disabled{opacity:.5;cursor:not-allowed}
+.field{margin:14px 0}.field .btn{margin-top:8px}
+.btn.small{padding:6px 12px;font-size:.92rem}.small{font-size:.92rem}
+pre.qcode{white-space:pre;word-break:normal;overflow-x:auto}
+@media (max-width:480px){pre.qcode{font-size:13px;padding:12px}}
+.check{display:flex;gap:10px;align-items:flex-start;font-weight:600;margin:14px 0}.check input{width:22px;height:22px;margin:2px 0 0;flex:none}
+.idk{border-top:1px solid var(--line);margin-top:18px;padding-top:4px}
+.nav{justify-content:space-between}
+.review{list-style:none;padding:0}.review li{margin:12px 0}.revhead{display:flex;justify-content:space-between;gap:10px;align-items:center}
+pre.ans{background:var(--bg);color:var(--ink);border:1px solid var(--line);margin:4px 0}
+.tagline{font-style:italic;color:var(--mut);margin:6px 0}
+.pcode{font:800 clamp(1.8rem,8vw,2.6rem) ui-monospace,Menlo,monospace;letter-spacing:.06em;background:var(--card);border:2px dashed var(--teal);border-radius:12px;padding:14px 18px;display:inline-block}
+.info{padding-left:20px}.info li{margin:6px 0}
+details.card{margin-top:16px}
+fieldset.card{margin:14px 0}legend{font-weight:700;padding:0 4px}
+.scale{display:grid;gap:6px}.pt{display:flex;gap:10px;align-items:center;font-weight:400;margin:0;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+.pt input{width:20px;height:20px;flex:none}
+.tablewrap{overflow-x:auto}table{border-collapse:collapse;width:100%;margin:12px 0}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+a{color:var(--teal)}
 </style>
 </head>
 <body>
@@ -101,6 +129,8 @@ body.preview header{display:none}body.preview footer{display:none}body.preview m
 <script src="js/level2.js"></script>
 <script src="js/level3.js"></script>
 <script src="js/level4.js"></script>
+<script src="js/study-storage.js"></script>
+<script src="js/study.js"></script>
 <script>start();</script>
 </body>
 </html>
