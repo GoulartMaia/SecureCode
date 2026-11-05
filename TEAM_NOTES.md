@@ -18,7 +18,10 @@ Define `VIEWS.level3 = () => { ... }` in `js/level3.js`, and it appears on the m
 Each question also needs `prompt` (plain text) and `key` (the answer). Only the chatbot sees these.
 
 ## Pretest, post-test, consent (E)
-Add the views in a new file and register them in `LEVELS` in `js/core.js`. `welcome()` in `core.js` is the start page, so consent and the pretest can go right after it.
+- `js/study.js`: start page with study information and consent, participant code, the two technical checks, the optional experience questions and the demo data page (`?demo-data=1`).
+- `js/forms/pre-v1.js`, `js/forms/post-v1.js`: the question text only. No answers or scoring are in the site; the private rubric is kept outside the repository.
+- `js/study-storage.js`: storage adapter. For the milestone it keeps responses in this browser only; replace it with an API adapter later (see `docs/ASSESSMENT_MILESTONE.md`).
+- Order: consent, participant code, Starting check, diary, refresher, Levels 1-4, Final check, optional experience questions.
 
 ### What Levels 3-4 teach (the post-test can cover these)
 Level 3, building attacks:
@@ -51,8 +54,8 @@ The site gives everyone who answers 5 points, because keyword matching would be 
 3. The input is treated as a value, so a quote or `--` can't change the query.
 
 ## Start page and passwords
-- `student`: starts the lesson in the AI or no-AI version. The server gives the group with fewer students so far. Without the server it's a coin flip, so the groups may not be equal.
-- `teacher`: shows both versions side by side, level by level. Nothing is saved or logged, and there are no time limits.
+- Participants no longer need a password: they read the study information, agree, and get a participant code. In the milestone demo the group comes from a local permuted-block list in the browser (balanced only within one browser); the real study should assign on the server.
+- `teacher` (under "Team preview"): shows both versions side by side, level by level, and the test forms with dummy answers. Nothing is saved or logged, there are no time limits, and it never shows stored responses.
 
 The passwords are in the public code, so they only keep the two doors apart. They aren't real security.
 

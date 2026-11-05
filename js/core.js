@@ -7,12 +7,14 @@ const STAGE=params.get('stage');
 const app=()=>document.getElementById('app');
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const h=html=>{app().innerHTML=html;window.scrollTo(0,0)};
+const h=html=>{document.body.classList.remove('assessing');app().innerHTML=html;window.scrollTo(0,0)};
 const fresh=()=>({code:null,group:null,done:{},points:0,q:{},deadline:{},queue:[]});
 let P=fresh();
 if(PREVIEW){P.code='PREVIEW';P.group=PREVIEW}
 else try{P=Object.assign(fresh(),JSON.parse(localStorage.getItem('sc2')||'{}'))}catch(e){}
-const save=()=>{if(PREVIEW)return;try{localStorage.setItem('sc2',JSON.stringify(P))}catch(e){}};
+const save=()=>{if(PREVIEW)return;try{localStorage.setItem('sc2',JSON.stringify(P))}catch(e){}
+ /* study.js keeps a copy with the participant record, so the same browser can resume by code */
+ try{window.onLessonSave&&window.onLessonSave(P)}catch(e){}};
 const done=id=>!!P.done[id];
 const updPts=()=>{$('pts').textContent=P.points};
 const addPoints=n=>{P.points+=n;save();updPts()};
@@ -41,7 +43,7 @@ addEventListener('pagehide',flush);
 
 /* ---------- assignment: the server gives the group with fewer students so far, so the groups stay equal.
    If the server can't be reached, it falls back to a coin flip, which is not guaranteed to be balanced. ---------- */
-const STUDENT_PASSWORD='student',TEACHER_PASSWORD='teacher';
+const TEACHER_PASSWORD='teacher';
 async function assignGroup(){
  if(api)try{
   const r=await fetch(api+'/assign',{method:'POST'});
@@ -53,13 +55,18 @@ async function assignGroup(){
 const isAI=()=>P.group==='ai';
 
 /* ---------- map ---------- */
+/* pretest, posttest and experience are study steps (js/study.js), not lesson levels. */
+const STUDY_STEPS=['pretest','posttest','experience'];
 const LEVELS=[
- {id:'diary',name:'The open diary',sub:'A small challenge to start with',need:null},
+ {id:'pretest',name:'Starting check',sub:'Six short questions before the lesson',need:null},
+ {id:'diary',name:'The open diary',sub:'A small challenge to start with',need:'pretest'},
  {id:'refresher',name:'SQL refresher',sub:'Optional reminder, no points',need:'diary'},
  {id:'level1',name:'Level 1: Understand',sub:'How your input changes a query',need:'refresher'},
  {id:'level2',name:'Level 2: Spot',sub:'Find the vulnerable code',need:'level1'},
  {id:'level3',name:'Level 3: Attack',sub:'Write the attacks yourself',need:'level2'},
- {id:'level4',name:'Level 4: Fix',sub:'Repair the code',need:'level3'}
+ {id:'level4',name:'Level 4: Fix',sub:'Repair the code',need:'level3'},
+ {id:'posttest',name:'Final check',sub:'Six short questions after the lesson',need:'level4'},
+ {id:'experience',name:'Your experience',sub:'Optional short questionnaire',need:'posttest'}
 ];
 const VIEWS={};
 function go(id){if(inTeacher||PREVIEW)return;if(!P.code)return welcome();(VIEWS[id]||map)()}
@@ -71,23 +78,12 @@ function start(){
  updPts();flush();
  let teacherOn=false;try{teacherOn=sessionStorage.getItem('sc-teacher')==='1'}catch(e){}
  if(teacherOn)return teacher();
- P.code?map():welcome();
+ if(params.get('demo-data')==='1')return demoDataPage();
+ P.code?(resumeStudy()||map()):welcome();
 }
-function welcome(){
- h(`<section class="hero"><h1>Secure<span style="color:var(--teal)">Code</span></h1>
- <p>Learn how SQL injection works by doing it: first you see why the lock opens, then you learn to spot the weak spots, attack them and fix them.</p></section>
- <label for="pw">Password</label><input id="pw" type="password" autocomplete="off">
- <div class="row"><button class="btn" id="go">Start</button></div><div id="out" aria-live="polite"></div>`);
- const submit=async()=>{
-  const pw=$('pw').value.trim().toLowerCase();
-  if(pw===TEACHER_PASSWORD){try{sessionStorage.setItem('sc-teacher','1')}catch(e){}return teacher()}
-  if(pw!==STUDENT_PASSWORD){$('out').innerHTML='<div class="msg bad">That password is not right.</div>';return}
-  $('go').disabled=true;
-  const {group,how}=await assignGroup();
-  P.code='S'+crypto.randomUUID().slice(0,8);P.group=group;save();log('start',{assignment:how});map();
- };
- $('go').onclick=submit;$('pw').onkeydown=e=>{if(e.key==='Enter')submit()};
-}
+/* The start page is the study entry in js/study.js: information, consent and a participant code.
+   The old shared 'student' password is no longer needed; the teacher password still opens the team preview. */
+function welcome(){studyWelcome()}
 
 /* ---------- teacher view: both versions side by side, one level at a time.
    Each side is this same site in preview mode: nothing is saved or logged, and there are no time limits. ---------- */
@@ -97,7 +93,7 @@ const previewUrl=(v,level,stage)=>{
  if(isLocal&&params.get('api'))q.set('api',params.get('api'));
  return '?'+q;
 };
-const stagesOf=id=>['diary','refresher'].includes(id)?[]:[['lesson','Lesson'],['questions','Questions']];
+const stagesOf=id=>['diary','refresher',...STUDY_STEPS].includes(id)?[]:[['lesson','Lesson'],['questions','Questions']];
 function teacher(){
  inTeacher=true;document.body.classList.add('teacher');
  let level='diary',stage='lesson';
