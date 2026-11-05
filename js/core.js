@@ -17,20 +17,25 @@ const done=id=>!!P.done[id];
 const updPts=()=>{$('pts').textContent=P.points};
 const addPoints=n=>{P.points+=n;save();updPts()};
 
-/* ---------- logging: every event stays queued until the server has stored it ---------- */
+/* ---------- logging: events are queued, then sent in batches, because the free storage plan
+   allows 1,000 writes per day. Anything not yet stored stays queued and is retried. ---------- */
+let flushing=false,flushTimer=null;
 function log(type,data={}){
  if(PREVIEW)return;
- P.queue.push({t:new Date().toISOString(),code:P.code,group:P.group,type,...data});save();flush();
+ P.queue.push({t:new Date().toISOString(),code:P.code,group:P.group,type,...data});save();
+ if(P.queue.length>=25||type==='level_done')flush();
+ else if(!flushTimer)flushTimer=setTimeout(flush,30000);
 }
-let flushing=false;
 async function flush(){
+ clearTimeout(flushTimer);flushTimer=null;
  if(!api||flushing||!P.queue.length)return;
- flushing=true;const batch=P.queue.slice(0,50);let sent=false;
+ flushing=true;const batch=P.queue.slice(0,50);
  try{
   const r=await fetch(api+'/log',{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(batch),keepalive:true});
-  if(r.ok){P.queue.splice(0,batch.length);save();sent=true}
+  if(r.ok){P.queue.splice(0,batch.length);save()}
  }catch(e){}
- flushing=false;if(sent&&P.queue.length)flush();
+ flushing=false;
+ if(P.queue.length&&!flushTimer)flushTimer=setTimeout(flush,30000);
 }
 addEventListener('pagehide',flush);
 
@@ -49,7 +54,8 @@ const isAI=()=>P.group==='ai';
 
 /* ---------- map ---------- */
 const LEVELS=[
- {id:'refresher',name:'SQL refresher',sub:'Optional reminder, no points',need:null},
+ {id:'diary',name:'The open diary',sub:'A small challenge to start with',need:null},
+ {id:'refresher',name:'SQL refresher',sub:'Optional reminder, no points',need:'diary'},
  {id:'level1',name:'Level 1: Understand',sub:'How your input changes a query',need:'refresher'},
  {id:'level2',name:'Level 2: Spot',sub:'Find the vulnerable code',need:'level1'},
  {id:'level3',name:'Level 3: Attack',sub:'Write the attacks yourself',need:'level2'},
@@ -91,10 +97,10 @@ const previewUrl=(v,level,stage)=>{
  if(isLocal&&params.get('api'))q.set('api',params.get('api'));
  return '?'+q;
 };
-const stagesOf=id=>id==='refresher'?[]:id==='level1'?[['intro','Diary'],['lesson','Lesson'],['questions','Questions']]:[['lesson','Lesson'],['questions','Questions']];
+const stagesOf=id=>['diary','refresher'].includes(id)?[]:[['lesson','Lesson'],['questions','Questions']];
 function teacher(){
  inTeacher=true;document.body.classList.add('teacher');
- let level='refresher',stage='lesson';
+ let level='diary',stage='lesson';
  const draw=()=>{
   const stages=stagesOf(level);
   if(stages.length&&!stages.some(x=>x[0]===stage))stage='lesson';
@@ -102,7 +108,7 @@ function teacher(){
   <div class="tabs" role="group" aria-label="Part">${stages.map(x=>`<button class="tab ${x[0]===stage?'on':''}" data-s="${x[0]}">${x[1]}</button>`).join('')}</div>
   <button class="tab" id="texit">Exit</button></div>
   <div class="split">${[['ai','AI version'],['control','No-AI version']].map(([v,n])=>`<section><h3>${n}</h3><iframe title="${n}" src="${previewUrl(v,level,stage)}"></iframe></section>`).join('')}</div>`);
-  app().querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{level=b.dataset.l;stage=level==='level1'?'intro':'lesson';draw()});
+  app().querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{level=b.dataset.l;stage='lesson';draw()});
   app().querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{stage=b.dataset.s;draw()});
   $('texit').onclick=()=>{try{sessionStorage.removeItem('sc-teacher')}catch(e){}inTeacher=false;document.body.classList.remove('teacher');P.code?map():welcome()};
  };

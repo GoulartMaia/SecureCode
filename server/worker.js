@@ -1,13 +1,12 @@
-// Keeps the API key off the public website, and stores the study logs.
-import Anthropic from "@anthropic-ai/sdk";
+// Connects the chatbot to Workers AI, keeps the groups equal, and stores the study logs.
 
 const SYSTEM = `You are the tutor in SecureCode, a 30-minute lesson for EPFL undergraduates on SQL injection. All practice happens in a simulation.
 
-Keep every reply under 80 words and in plain language. Talk only about SQL and SQL injection in the lesson; for anything else, steer back politely. Never help attack a real system.
+Keep every reply under 80 words and in plain language. Write plain text only, with no markdown symbols such as asterisks or backticks. Talk only about SQL and SQL injection in the lesson; for anything else, steer back politely. Never help attack a real system.
 
 The "stage" in the exercise data decides what you may do:
 - learn: explain the topic freely, with short examples.
-- question: the student is answering a scored question. Never state or confirm the answer, and never rule options in or out. Point at their specific misunderstanding, or ask one guiding question. Each reply is one hint.
+- question: the student is answering a scored question. Never state the answer, and never rule options in or out. If they propose an answer or ask whether they are right, do not say right, wrong, correct, close or anything similar, and do not repeat their answer back. Say that the Check answer button will tell them, then ask one question about their reasoning. Otherwise, point at their specific misunderstanding or ask one guiding question. Each reply is one hint.
 - after: the question is over, so you may explain the answer fully. If they are still unsure, give one new similar exercise and let them try it.`;
 
 const cors = (env) => ({
@@ -26,20 +25,13 @@ async function chat(request, env) {
   const data = JSON.stringify(context ?? {});
   if (!valid || data.length > 5000) return json(env, { error: "invalid request" }, 400);
 
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-  const response = await client.beta.messages.create({
-    model: env.MODEL || "claude-opus-5-5",
-    max_tokens: 2000,
-    output_config: { effort: "low" },
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    system: `${SYSTEM}\n\nExercise data (from the lesson):\n${data}`,
-    messages,
+  const result = await env.AI.run(env.MODEL || "@cf/google/gemma-4-26b-a4b-it", {
+    messages: [{ role: "system", content: `${SYSTEM}\n\nExercise data (from the lesson):\n${data}` }, ...messages],
+    max_tokens: 400,
+    chat_template_kwargs: { enable_thinking: false },
   });
-  if (response.stop_reason === "refusal") {
-    return json(env, { reply: "I can't answer that one. Try asking about the lesson in a different way.", refused: true });
-  }
-  const reply = response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
+  const reply = (result.choices?.[0]?.message?.content ?? result.response ?? "").trim();
+  if (!reply) return json(env, { error: "empty reply" }, 502);
   return json(env, { reply });
 }
 

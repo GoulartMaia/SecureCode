@@ -1,3 +1,34 @@
+/* ---------- The open diary: comes first, before any SQL is taught ---------- */
+VIEWS.diary=()=>{
+ const reflect=()=>{
+  const fb=['Guessing would take days, but you do not have to guess. There is a shortcut.','Fair. Here is the context: the diary builds a database question out of whatever you type.','Good instinct, and that is why we only practise on a simulation, never on real people.','Good thinking. SQL is the language the diary uses to check your password.'];
+  $('out').innerHTML=`<div class="msg bad">Locked out. What do you make of this task?</div>
+  ${['Impossible, I would need days','I need more context','I would never do this to a friend','It probably has something to do with SQL'].map((o,i)=>`<button class="opt" data-i="${i}">${o}</button>`).join('')}`;
+  $('out').querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
+   log('diary_reflection',{choice:b.textContent});
+   $('out').querySelectorAll('.opt').forEach(x=>x.disabled=true);
+   $('out').insertAdjacentHTML('beforeend',`<div class="msg good">${fb[+b.dataset.i]} By the end of this lesson you will know how someone could get into Margaret's diary <i>without</i> the password.${PREVIEW?'':'<div class="row"><button class="btn" id="tolearn">Show me how</button></div>'}</div>`);
+   if(PREVIEW)return;
+   $('tolearn').onclick=()=>{P.done.diary=1;save();log('diary_end');VIEWS.refresher()};
+  });
+ };
+ let tries=0;log('diary_start');
+ h(`<h2>The open diary</h2><p>Your friend loves writing their own programs. They just left the room with this open on their laptop:</p>
+ <div class="diary"><b>Super Secret Diary</b><br>Username: <code>Margaret4233</code><br>Password: ▮▮▮▮▮▮▮▮</div>
+ <p>You are curious. Can you guess Margaret's password in <b>3 tries</b>?</p>
+ <div class="tries" id="tr" aria-label="Attempts used"><span></span><span></span><span></span></div>
+ <label for="g">Password guess</label><input id="g" type="text" autocomplete="off">
+ <div class="row"><button class="btn" id="try">Try it</button></div><div id="out" aria-live="polite"></div>`);
+ const attempt=()=>{
+  const g=$('g');if(!g.value.trim())return;
+  tries++;log('diary_guess',{n:tries});g.value='';
+  document.querySelectorAll('#tr span')[tries-1].classList.add('used');
+  if(tries<3){$('out').innerHTML=`<div class="msg bad">Access denied. ${3-tries} ${tries===2?'try':'tries'} left.</div>`;return}
+  $('try').disabled=true;g.disabled=true;reflect();
+ };
+ $('try').onclick=attempt;$('g').onkeydown=e=>{if(e.key==='Enter')attempt()};
+};
+
 /* ---------- Refresher (no points, can be skipped) ---------- */
 const REFRESHER=`<p>A database table holds rows, and a query asks for the rows you want:</p>
 <div class="code">SELECT * FROM users WHERE name = 'Leo' AND password = 'pw3'</div>
@@ -80,34 +111,6 @@ const L1_QUESTIONS=[
   explain:`The query becomes <code>... WHERE name = 'Leo'--' AND password = 'anything'</code>. Everything after <code>--</code> is ignored, including the leftover quote, so only the name is checked.`}
 ];
 VIEWS.level1=()=>{
- const reflect=()=>{
-  const fb=['Guessing would take days, but you do not have to guess. There is a shortcut.','Fair. Here is the context: the diary builds a database question out of whatever you type.','Good instinct, and that is why we only practise on a simulation, never on real people.','Good thinking. SQL is the language the diary uses to check your password.'];
-  $('out').innerHTML=`<div class="msg bad">Locked out. What do you make of this task?</div>
-  ${['Impossible, I would need days','I need more context','I would never do this to a friend','It probably has something to do with SQL'].map((o,i)=>`<button class="opt" data-i="${i}">${o}</button>`).join('')}`;
-  $('out').querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
-   log('diary_reflection',{level:'level1',choice:b.textContent});
-   $('out').querySelectorAll('.opt').forEach(x=>x.disabled=true);
-   $('out').insertAdjacentHTML('beforeend',`<div class="msg good">${fb[+b.dataset.i]} By the end of this level you will know how someone could get into Margaret's diary <i>without</i> the password.<div class="row"><button class="btn" id="tolearn">Show me how</button></div></div>`);
-   $('tolearn').onclick=learn;
-  });
- };
- const diary=()=>{
-  let tries=0;log('diary_start',{level:'level1'});
-  h(`<h2>Level 1: The open diary</h2><p>Your friend loves writing their own programs. They just left the room with this open on their laptop:</p>
-  <div class="diary"><b>Super Secret Diary</b><br>Username: <code>Margaret4233</code><br>Password: ▮▮▮▮▮▮▮▮</div>
-  <p>You are curious. Can you guess Margaret's password in <b>3 tries</b>?</p>
-  <div class="tries" id="tr" aria-label="Attempts used"><span></span><span></span><span></span></div>
-  <label for="g">Password guess</label><input id="g" type="text" autocomplete="off">
-  <div class="row"><button class="btn" id="try">Try it</button></div><div id="out" aria-live="polite"></div>`);
-  const attempt=()=>{
-   const g=$('g');if(!g.value.trim())return;
-   tries++;log('diary_guess',{level:'level1',n:tries});g.value='';
-   document.querySelectorAll('#tr span')[tries-1].classList.add('used');
-   if(tries<3){$('out').innerHTML=`<div class="msg bad">Access denied. ${3-tries} ${tries===2?'try':'tries'} left.</div>`;return}
-   $('try').disabled=true;g.disabled=true;reflect();
-  };
-  $('try').onclick=attempt;$('g').onkeydown=e=>{if(e.key==='Enter')attempt()};
- };
  const learn=()=>{
   const box=sandbox(()=>{P.tried1=1;save();const b=$('learndone');if(b){b.disabled=false;b.textContent="I'm ready for the questions"}});
   learnStage({level:'level1',title:'Level 1: How input becomes code',html:L1_LESSON+'<div id="sandbox"></div>',examples:L1_EXAMPLES,onDone:quiz,
@@ -116,6 +119,7 @@ VIEWS.level1=()=>{
  const quiz=()=>runQuiz({level:'level1',title:'Level 1: Understand',questions:L1_QUESTIONS,
   review:()=>L1_LESSON.replace(/<p>Try it below.*?<\/p>/s,'')+(isAI()?'':L1_EXAMPLES)+REFRESHER,
   onDone:()=>finishLevel('level1','You now know how typed text can change a query.')});
- if(PREVIEW)return STAGE==='questions'?quiz():STAGE==='intro'?diary():learn();
- if(P.deadline.level1)Date.now()<P.deadline.level1?learn():quiz();else diary();
+ if(PREVIEW)return STAGE==='questions'?quiz():learn();
+ if(P.deadline.level1&&Date.now()>=P.deadline.level1)return quiz();
+ learn();
 };

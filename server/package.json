@@ -1,1 +1,1 @@
-{ "name": "securecode-server", "private": true, "type": "module", "dependencies": { "@anthropic-ai/sdk": "latest" }, "devDependencies": { "wrangler": "latest" } }
+{ "name": "securecode-server", "private": true, "type": "module", "devDependencies": { "wrangler": "latest" } }

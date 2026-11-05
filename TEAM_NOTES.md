@@ -32,13 +32,15 @@ Students who start but don't finish still count towards their group, so check th
 - `?reset=1` clears your progress. Do this between people on the same computer.
 
 ## Connecting the chatbot and logs
+The chatbot uses Cloudflare Workers AI (model: Gemma 4), so only a free Cloudflare account is needed, with no API key.
 ```bash
 cd server
 npm install
 npx wrangler login
 npx wrangler kv namespace create LOGS
-npx wrangler secret put ANTHROPIC_API_KEY
 npx wrangler secret put ADMIN_TOKEN
 npx wrangler deploy
 ```
-Paste the KV id into `wrangler.toml` before deploying, then paste the address it prints into `API_URL` in `js/config.js`. Set a spending limit in the Anthropic Console. To download the logs, open `<address>/logs?token=<ADMIN_TOKEN>`.
+Paste the KV id into `wrangler.toml` before deploying, then paste the address it prints into `API_URL` in `js/config.js`. To download the logs, open `<address>/logs?token=<ADMIN_TOKEN>`.
+
+Free limits: about 10,000 AI units per day, which is roughly 500 chatbot messages by our estimate, and 1,000 log writes per day.

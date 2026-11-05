@@ -5,8 +5,11 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ALLOWED_ORIGIN = "https://goulartmaia.github.io"
-# MODEL = "claude-opus-5-5"   # uncomment and change to use another model
+# MODEL = "@cf/google/gemma-4-26b-a4b-it"   # uncomment and change to use another model
+
+[ai]
+binding = "AI"
 
 [[kv_namespaces]]
 binding = "LOGS"
-id = "PASTE_THE_ID_FROM_kv_namespace_create"
+id = "b7cd7d3e3d134c418a31777c552049a7"
