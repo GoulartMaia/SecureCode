@@ -77,7 +77,7 @@ const L4_QUESTIONS=[
   explain:`The fix: <div class="code">cursor.execute("SELECT title, body FROM notes WHERE title LIKE ?", ("%" + term + "%",))</div> The <code>%</code> signs are added to the value in Python, and the comma makes it a tuple. Whatever the user types stays part of the search word.`})
 ];
 
-/* Final check: no hints and no chatbot in either version, so the score shows what students can do alone.
+/* Final check: no hints in either version, so the score shows what students can do alone.
    This keeps the engine's scoring and logging, and hides its help panel and lesson review for this question only. */
 const NO_HELP='<style>#qhelp,#app details{display:none}</style>';
 const FINAL_CODE=`def login(name, password):

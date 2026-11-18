@@ -11,17 +11,23 @@
 ## Adding Level 3 or 4 (G)
 Define `VIEWS.level3 = () => { ... }` in `js/level3.js`, and it appears on the map. Copy the end of `js/level2.js`:
 - `learnStage({level, title, html, examples, onDone})` shows the text with a timer. The AI group also gets the chatbot, the no-AI group the examples.
-- `runQuiz({level, title, questions, review, onDone})` handles points, hints or chatbot, and logging. For custom answers, give a question `render`, `isCorrect` and `describe`, like `spot` in `level2.js`.
+- `runQuiz({level, title, questions, review, onDone})` handles points, the fixed hints (the same for both groups) and logging. For custom answers, give a question `render`, `isCorrect` and `describe`, like `spot` in `level2.js`.
 - `finishLevel('level3', 'message')` ends the level.
 - `log('type', {...})` records anything else.
 
-Each question also needs `prompt` (plain text) and `key` (the answer). Only the chatbot sees these.
+Questions don't need `prompt` or `key` any more: the chatbot is only in the lesson stage, so nothing reads them.
 
 ## Pretest, post-test, consent (E)
-- `js/study.js`: start page with study information and consent, participant code, the two technical checks, the optional experience questions and the demo data page (`?demo-data=1`).
-- `js/forms/pre-v1.js`, `js/forms/post-v1.js`: the question text only. No answers or scoring are in the site; the private rubric is kept outside the repository.
+- `js/study.js`: start page with study information and consent, the two technical checks, the optional experience questions and the demo data page (`?demo-data=1`).
+- `js/forms/pre-v2.js`, `js/forms/post-v2.js`: the question text only. No answers or scoring are in the site; the private answer key and rubric are kept outside the repository.
+- **Question format (v2):** 5 of 6 questions are multiple choice and are marked automatically against the private key. Only question 5 (repair a lookup, `PRE-05` / `POST-05`) is open, so only one answer per student needs hand grading. The post-test mirrors the pre-test question by question, with different names and different answer positions. v1 data is not directly comparable.
+- A multiple-choice field stores the letter picked (`A`-`D`) in `part_a` / `part_b`. "I don't know" is still available and is stored as `dont_know`. To add one, give a field `kind:'choice'`, a `label` and an `options` array; backticks in an option show inline code.
 - `js/study-storage.js`: keeps answers in the browser so a participant can resume, and sends submitted test and questionnaire answers to the server. Download them from `/responses?token=<ADMIN_TOKEN>` on the server.
-- Order: consent, participant code, Starting check, diary, refresher, Levels 1-4, Final check, optional experience questions.
+- Order: consent, Starting check, diary, refresher, Levels 1-4, Final check, optional experience questions.
+
+### Participant ID (nothing for participants to manage)
+Participants never see, write down or type a code. When someone agrees to the consent text, the site asks the server for a group and makes a random ID (`SC-XXXX-XXXX`) in the background. It is kept in the browser and attached to every answer and log event, so pre-test, lesson and post-test still link together, and the server still balances the two groups with it. Reloading or reopening the page in the same browser continues where the participant stopped.
+- Limit: progress cannot move to another browser or device, and clearing site data or using a private window starts a new participant. Tell participants to use one browser for the whole session.
 
 ### What Levels 3-4 teach (the post-test can cover these)
 Level 3, building attacks:
@@ -42,7 +48,7 @@ Not taught, so please leave it out: `ORDER BY` columns and allowed lists.
 
 ## Level 3-4 design choices
 - **Level 3 checks:** blocks run on the small database in `level3.js`, so any attack that works is accepted. It matched real SQLite on every query the blocks can produce.
-- **Level 4 feedback:** both versions see the corrected code and explanation. The AI version can also ask the assistant about it. Explaining to a confused AI was left out because the no-AI version would have no equal task.
+- **Level 4 feedback:** both versions see the corrected code and explanation. Neither version has a chatbot during the questions. Explaining to a confused AI was left out because the no-AI version would have no equal task.
 - **Level 4 final check:** the last two questions have no hints or chatbot in either version. They hide the engine's help panel using a `<style>` tag in the question, so `core.js` is unchanged.
 - **Level 4 repair:** in the final check, students edit the login code themselves. `checkLoginFix` in `level4.js` requires fixed SQL text with `?` placeholders and separate values, then runs the SQL on the simulated database: the attack must fail, and normal logins must work, including O'Brien's. On 42 student-style answers compared with real Python and SQLite, it accepted nothing unsafe or broken. It can refuse unusual but safe code, such as manual quote escaping, so check the logged code in the `q_attempt` events if a student's score looks wrong.
 - **Tutor material:** in every level's lesson, `learnStage` in `core.js` sends the tutor the no-AI worked examples and its limits. AI students can't see the examples unless the tutor shares them. `server/worker.js` is unchanged.
@@ -67,7 +73,7 @@ The server assigns each new student to the group with fewer students, counting t
 - `?reset=1` clears your progress. Do this between people on the same computer.
 
 ## Connecting the chatbot and logs
-The chatbot uses Cloudflare Workers AI (model: Gemma 4), so only a free Cloudflare account is needed, with no API key.
+The chatbot (AI group, lesson stage only) uses Cloudflare Workers AI (model: Gemma 4), so only a free Cloudflare account is needed, with no API key.
 ```bash
 cd server
 npm install

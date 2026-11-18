@@ -1,11 +1,11 @@
 /* ---------- Study flow: consent, participant code, technical pre-test and post-test, optional experience questions.
    The tests are identical for both groups and show no hints, assistant, lesson links, answer feedback or scores.
    Responses go through studyStore (js/study-storage.js), which also sends finished answers to the team's server. ---------- */
-const DEMO_NOTICE=api?'Your answers to the checks and the questionnaire are sent to the team’s server when you submit them, along with your lesson activity. They are linked to your participant code, not your name.':'Milestone demo: your answers are stored only in this browser. They are not sent to the research team and will not sync to another device.';
+const DEMO_NOTICE=api?'Your answers to the checks and the questionnaire are sent to the team’s server when you submit them, along with your lesson activity. They are linked to a random ID that the site creates for you, not to your name.':'Milestone demo: your answers are stored only in this browser. They are not sent to the research team and will not sync to another device.';
 const TEST_INTRO='This short check asks what you can currently do with database-query code. It is not a course grade. Answer without AI, notes, or outside help. If you do not know an answer, select “I don’t know” rather than looking it up. No answer feedback will be shown during this activity.';
 const TEST_ASSUMPTIONS='All examples are fictional and must stay inside this learning activity. Python examples use Python’s sqlite3 interface. SQL uses SQLite syntax. Names and inputs shown in examples are case-sensitive for this activity.';
 const TIMING_NOTE='There is no time limit. You can go back and change answers until you submit.';
-const PHASE_FORM={pre:'pre-v1',post:'post-v1'};
+const PHASE_FORM={pre:'pre-v2',post:'post-v2'};
 const PHASE_NAME={pre:'Starting check',post:'Final check'};
 const notice=()=>`<p class="notice" role="note">${DEMO_NOTICE}</p>`;
 const fmt=s=>esc(s).replace(/`([^`]+)`/g,'<code>$1</code>');
@@ -59,20 +59,17 @@ function studyWelcome(){
  <h3 id="datah">Data we collect</h3>
  <p>If you take part, we collect the following data for this study:</p>
  <ul class="info" aria-labelledby="datah">
- <li><b>Your code and lesson version:</b> a random participant code and the version of the lesson you are given. Some versions include an assistant.</li>
+ <li><b>A random ID and your lesson version:</b> the site creates the ID for you when you agree. It links your answers together without using your name, and you never need to type or remember it. Some versions of the lesson include an assistant.</li>
  <li><b>Your answers:</b> your answers to the starting check, the lesson exercises, the final check and the optional questionnaire.</li>
  <li><b>What you type in the lesson:</b> this includes the practice login boxes and, if your version has an assistant, your messages and its replies.</li>
  <li><b>Your activity:</b> how long each part takes, your attempts, the help you use and your points.</li></ul>
  <p><b>Where it goes:</b> ${api?'your answers and lesson activity are sent to the team’s server, hosted by Cloudflare. Answers to the checks and the questionnaire are sent when you submit them, and unfinished answers stay in this browser. Messages to the assistant also go to Cloudflare’s AI service, which writes the replies.':'in this demo, your data stays in this browser.'}</p>
  <p><b>What we do not ask for:</b> your name, email or student number. Our study records do not include your IP address, but the services that host the site (GitHub and Cloudflare) handle it to deliver the pages. <b>Please do not type personal information or a real password anywhere,</b> including the practice login boxes.</p>
- <p><b>How it is used:</b> the research team uses the data for a CS-411 Digital Education course project at EPFL. Your records are linked by your participant code, so they are pseudonymous, not fully anonymous. How long data is kept and who to contact will be described in the final information sheet.</p>
+ <p><b>How it is used:</b> the research team uses the data for a CS-411 Digital Education course project at EPFL. Your records are linked by the random ID, so they are pseudonymous, not fully anonymous. How long data is kept and who to contact will be described in the final information sheet.</p>
  <h3>Your consent</h3>
  <p>To continue, we need your consent to collect this data. If you do not agree, you will not take part, and nothing will be recorded.</p>
  <label class="check"><input type="checkbox" id="consent"> I have read the study information. I agree to take part and consent to the collection and use of my data as described above.</label>
  <div class="row"><button class="btn" id="begin" disabled>Agree and continue</button><button class="btn alt" id="decline">I do not agree</button></div><div id="out" aria-live="polite"></div></section>
- <details class="card"><summary>I already have a participant code</summary>
- <label for="rc">Participant code</label><input id="rc" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="SC-XXXX-XXXX">
- <div class="row"><button class="btn alt" id="resume">Continue</button></div><div id="rout" aria-live="polite"></div></details>
  <p class="muted small"><a href="?demo-data=1">Milestone demo data in this browser (export or clear)</a></p>`);
  $('consent').onchange=()=>{$('begin').disabled=!$('consent').checked};
  $('decline').onclick=consentDeclined;
@@ -83,17 +80,8 @@ function studyWelcome(){
   const p=await studyStore.createParticipant({consentVersion:CONSENT_VERSION,assign:assignGroup});
   P=fresh();P.code=p.participant_code;P.group=p.assigned_condition;save();
   log('start',{assignment:p.assignment_method,consent:CONSENT_VERSION});
-  showCode(p.participant_code);
+  VIEWS.pretest();
  };
- const resume=async()=>{
-  const code=normalizeCode($('rc').value);
-  if(!code){$('rout').innerHTML='<div class="msg bad">That does not look like a participant code. It has the form SC-XXXX-XXXX.</div>';return}
-  const p=await studyStore.findParticipant(code);
-  if(!p){$('rout').innerHTML=`<div class="msg bad">This code is not stored in this browser. In this milestone demo, progress is saved only in the browser where it started, so a code from another device cannot be restored yet. Please continue on the original device or ask a researcher.</div>`;return}
-  P=Object.assign(fresh(),p.lesson_state||{},{code:p.participant_code,group:p.assigned_condition});save();updPts();
-  resumeStudy()||map();
- };
- $('resume').onclick=resume;$('rc').onkeydown=e=>{if(e.key==='Enter')resume()};
 }
 /* Declining creates no participant and logs nothing. */
 function consentDeclined(){
@@ -102,15 +90,8 @@ function consentDeclined(){
  <div class="row"><button class="btn alt" id="reread">Back to the study information</button></div>`);
  $('ch').focus();$('reread').onclick=studyWelcome;
 }
-function showCode(code){
- h(`<h2 tabindex="-1" id="ch">Your participant code</h2>
- <p class="pcode" aria-label="Participant code ${code.split('').join(' ')}">${code}</p>
- <p>Please write this code down or take a photo of it. It links your starting check, lesson and final check without using your name.</p>
- <p class="muted">In this milestone demo, the code can restore your progress only in this same browser.</p>
- ${notice()}<div class="row"><button class="btn" id="cgo">Continue to the starting check</button></div>`);
- $('ch').focus();$('cgo').onclick=()=>VIEWS.pretest();
-}
-/* Called on page load: reopens an unfinished test so a refresh does not lose the place. */
+/* Called on page load: reopens an unfinished test so a refresh does not lose the place. The browser remembers the
+   participant, so nobody has to enter a code to continue. */
 function resumeStudy(){
  if(!P.code)return false;
  const db=studyStore._read();
@@ -123,6 +104,8 @@ function resumeStudy(){
 
 /* ---------- test runner, shared by both phases ---------- */
 const DUMMY={a:'Dummy text for the preview.',b:'Dummy explanation for the preview.'};
+const LETTERS='ABCDEFGH';
+const plain=s=>String(s).replace(/`/g,'');
 let activeRunner=null;
 async function runTest(phase){
  assessing();
@@ -134,7 +117,7 @@ async function runTest(phase){
  let attempt=null,d;
  if(PREVIEW){
   d={screen:'intro',answers:{},durations:{}};
-  qs.forEach((q,i)=>{d.answers[q.id]=i===2?{idk:true}:Object.fromEntries(q.fields.map(f=>[f.key,f.kind==='number'?'':DUMMY[f.key]]))});
+  qs.forEach((q,i)=>{d.answers[q.id]=i===2?{idk:true}:Object.fromEntries(q.fields.map(f=>[f.key,f.kind==='choice'?'A':f.kind==='number'?'':DUMMY[f.key]]))});
  }else{
   attempt=await studyStore.getAttempt(P.code,phase);
   if(attempt?.status==='submitted'){P.done[phase==='pre'?'pretest':'posttest']=1;save();return map()}
@@ -162,7 +145,7 @@ async function runTest(phase){
  }
  function intro(){
   h(`<p class="eyebrow">${PHASE_NAME[phase]}</p><h2 tabindex="-1" id="qh">Before you start</h2>
-  <p>${TEST_INTRO}</p><p>${TEST_ASSUMPTIONS}</p><p>${TIMING_NOTE}</p><p class="muted">${N} questions.</p>${banner()}
+  <p>${TEST_INTRO}</p><p>${TEST_ASSUMPTIONS}</p><p>${TIMING_NOTE}</p><p class="muted">${N} questions, mostly multiple choice.</p>${banner()}
   <div class="row"><button class="btn" id="tstart">Start</button></div>`);
   assessing();$('qh').focus();
   $('tstart').onclick=async()=>{
@@ -173,6 +156,7 @@ async function runTest(phase){
  function fieldHtml(q,f,a,i){
   const id=`f-${f.key}`,v=esc(a[f.key]||''),dis=a.idk?'disabled':'';
   const common=`id="${id}" data-k="${f.key}" ${dis} autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off"`;
+  if(f.kind==='choice')return `<fieldset class="card choice"><legend>${esc(f.label)}</legend><div class="scale">${f.options.map((o,n)=>`<label class="pt"><input type="radio" name="${id}" data-k="${f.key}" value="${LETTERS[n]}" ${dis} ${a[f.key]===LETTERS[n]?'checked':''}><span><b>${LETTERS[n]}</b> ${fmt(o)}</span></label>`).join('')}</div></fieldset>`;
   let input;
   if(f.kind==='line')input=`<input type="text" class="mono" ${common} value="${v}">`;
   else if(f.kind==='number')input=`<input type="text" inputmode="numeric" class="num" ${common} value="${v}">`;
@@ -207,7 +191,8 @@ async function runTest(phase){
   const a=ans(q),st=status(q);
   if(st==='dont_know')return '<p class="tagline">I don’t know</p>';
   if(st==='skipped')return '<p class="tagline">No answer</p>';
-  return q.fields.map(f=>`<p class="muted small" style="margin:6px 0 2px">${esc(f.label)}</p>${String(a[f.key]||'').trim()?`<pre class="ans">${esc(a[f.key])}</pre>`:'<p class="tagline">Left empty</p>'}`).join('');
+  const text=(f,v)=>f.kind==='choice'?`${v}. ${plain(f.options[LETTERS.indexOf(v)]||'')}`:v;
+  return q.fields.map(f=>`<p class="muted small" style="margin:6px 0 2px">${esc(f.label)}</p>${String(a[f.key]||'').trim()?`<pre class="ans">${esc(text(f,a[f.key]))}</pre>`:'<p class="tagline">Left empty</p>'}`).join('');
  }
  function review(){
   startClock('review');
@@ -279,7 +264,7 @@ VIEWS.experience=()=>{
 function complete(){
  const waiting=()=>studyStore.pending?.()>0;
  h(`<h2 tabindex="-1" id="qh">Thank you for taking part</h2><p id="closing">${waiting()?'Your last answers have not reached the team’s server yet. Please keep this page open and check your connection.':'You have finished the study activity. You can close this page.'}</p>
- <p>Your participant code: <b class="mono">${esc(P.code)}</b></p>${notice()}`);$('qh').focus();
+ ${notice()}`);$('qh').focus();
  if(waiting()){const t=setInterval(async()=>{await studyStore.flushUploads();
   if(!waiting()){clearInterval(t);const c=$('closing');if(c)c.textContent='You have finished the study activity. You can close this page.'}},5000)}
 }

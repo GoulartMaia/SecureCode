@@ -1,5 +1,6 @@
 /* ---------- Study storage. LocalDemoStudyStorage keeps everything in this browser's localStorage, which also lets
-   a participant resume in the same browser. ServerStudyStorage (below) also sends finished answers to the team's
+   a participant resume in the same browser.
+   The participant ID is made here, silently, and is never shown to or typed by the participant. ServerStudyStorage (below) also sends finished answers to the team's
    server, and is used whenever the site has a server address. ---------- */
 const STUDY_VERSION='securecode-study-0.1';
 const CONSENT_VERSION='draft-consent-0.3';

@@ -1,4 +1,6 @@
-/* ---------- shared engine: use it for every level (points, timer, hints, chatbot, logging) ---------- */
+/* ---------- shared engine: use it for every level (points, timer, hints, chatbot, logging) ----------
+   The two versions differ ONLY in the learning stage: the AI group gets a chatbot there, the no-AI group gets worked
+   examples. During the questions both groups get the same fixed hints, and the chatbot is not available. */
 const params=new URLSearchParams(location.search);
 const isLocal=['localhost','127.0.0.1'].includes(location.hostname);
 const api=(isLocal&&params.get('api'))||API_URL;
@@ -171,7 +173,7 @@ function learnStage({level,title,html,examples,seconds,onDone,onMount}){
  if(onMount)onMount($('learndone'));
 }
 
-/* ---------- fixed hints for the no-AI group ---------- */
+/* ---------- fixed hints, the same for both groups: each one costs a point ---------- */
 function hintBox(mount,{hints,onUse}){
  let used=0;
  mount.innerHTML=`<div class="help"><div id="hintlist"></div><button class="btn alt" id="hintbtn">Hint (−1 point)</button></div>`;
@@ -182,10 +184,10 @@ function hintBox(mount,{hints,onUse}){
  };
 }
 
-/* ---------- chatbot for the AI group ---------- */
-function chatBox(mount,{level,stage,limit,cost,context,onUse,history}){
- const msgs=history||[];let used=0,busy=false;
- const label=cost?'Ask the assistant (−1 point per question)':'Ask the assistant anything about the lesson';
+/* ---------- chatbot for the AI group, learning stage only ---------- */
+function chatBox(mount,{level,stage,limit,context,onUse}){
+ const msgs=[];let used=0,busy=false;
+ const label='Ask the assistant anything about the lesson';
  mount.innerHTML=`<div class="help"><h3>${label}</h3><p class="muted" style="margin:0 0 6px">Your messages are saved for the study. Please don't include personal information.</p>
  <div class="cb"></div><div class="chatrow"><label class="muted" style="position:absolute;left:-9999px" for="cbq">Your question</label>
  <input id="cbq" type="text" autocomplete="off" maxlength="600" placeholder="Type your question"><button class="btn alt" id="cbs">Ask</button></div></div>`;
@@ -216,7 +218,7 @@ function chatBox(mount,{level,stage,limit,cost,context,onUse,history}){
 
 /* ---------- quiz engine. A question: {id,text,hints[4],explain, ...} plus either
    options[]+answer (multiple choice) or render(mount,api) for a custom answer widget.
-   5 points, minus 1 per hint or chatbot question and minus 1 for a second attempt; never below 1 if correct.
+   5 points, minus 1 per hint and minus 1 for a second attempt; never below 1 if correct.
    Two wrong attempts: 0 points and the explanation is shown. ---------- */
 function runQuiz({level,title,questions,review,onDone}){
  const next=()=>{
@@ -225,7 +227,7 @@ function runQuiz({level,title,questions,review,onDone}){
   showQuestion(questions[i],i);
  };
  function showQuestion(q,i){
-  let attempts=0,help=0,over=false,started=Date.now();const tried=[],history=[];
+  let attempts=0,help=0,started=Date.now();const tried=[];
   log('q_start',{level,q:q.id});
   h(`<div class="toprow"><h2 style="margin:0">${title}</h2><span class="muted">Question ${i+1} of ${questions.length}</span></div>
   <div class="q">${q.text}</div><div id="ans"></div>
@@ -241,28 +243,21 @@ function runQuiz({level,title,questions,review,onDone}){
   }else q.render($('ans'),setAnswer);
   const isRight=a=>q.options?a===q.answer:q.isCorrect(a);
   const describe=a=>q.options?q.plain[a]:q.describe(a);
-  const ctx=()=>({stage:over?'after':'question',level,question:q.prompt,answerKey:q.key,attempts:tried,help});
-  const onUse=n=>{help=n;log('help',{level,q:q.id,kind:isAI()?'chat':'hint',n});};
-  const mountHelp=()=>{
-   if(isAI())chatBox($('qhelp'),{level,stage:'question',limit:MAX_HELP,cost:true,context:ctx,onUse,history});
-   else hintBox($('qhelp'),{hints:q.hints,onUse});
-  };
-  mountHelp();
+  const onUse=n=>{help=n;log('help',{level,q:q.id,kind:'hint',n});};
+  hintBox($('qhelp'),{hints:q.hints,onUse});
   const lock=()=>{$('ans').querySelectorAll('button').forEach(b=>b.disabled=true)};
   $('check').onclick=()=>{
    attempts++;const right=isRight(current);tried.push(describe(current));
    log('q_attempt',{level,q:q.id,attempt:attempts,answer:describe(current),right,help});
    if(!right&&attempts<MAX_ATTEMPTS){$('out').innerHTML=`<div class="msg bad">Not quite. You have one more try.</div>`;return}
-   over=true;lock();$('check').remove();$('skipq')?.remove();
+   lock();$('check').remove();$('skipq')?.remove();
    const pts=right?Math.max(1,POINTS_PER_QUESTION-help-(attempts-1)):0;
    P.q[q.id]=pts;addPoints(pts);
    log('q_end',{level,q:q.id,right,attempts,help,points:pts,seconds:Math.round((Date.now()-started)/1000)});
    $('out').innerHTML=`<div class="msg ${right?'good':'bad'}"><b>${right?`Correct, +${pts} ${pts===1?'point':'points'}.`:'That was your last try, 0 points.'}</b><br>${q.explain}</div>
    <div class="row"><button class="btn" id="nextq">${i+1<questions.length?'Next question':'Finish level'}</button></div>`;
    $('nextq').onclick=next;
-   if(isAI()){chatBox($('qhelp'),{level,stage:'after',limit:MAX_HELP,context:ctx,history});
-    $('qhelp').querySelector('h3').textContent='Still unsure? Ask the assistant to explain it or give you a similar exercise (free)'}
-   else $('qhelp').innerHTML='';
+   $('qhelp').innerHTML='';
   };
  }
  next();
