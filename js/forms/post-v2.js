@@ -20,15 +20,15 @@
     'Protected: `fetchall()` limits what the query can return.',
     'Not protected: line 2 should also remove double quotes.',
     'Protected: line 2 removes the single quotes before the query is built.',
-    'Not protected: line 3 adds the input to the SQL text, and because `id` has no quotes around it, an input such as `1 OR 1=1` works without any quote.']}]},
+    'Not protected: line 3 adds the input to the SQL text, so some attacks still work.',]}]},
   {id:'POST-03',title:'Construct a numeric-input attack',
    body:[{p:'In a fictional local simulation, `note_id` is inserted directly into this query:'},
     {code:'sql = "SELECT * FROM notes WHERE id = " + note_id',lang:'Python'}],
    fields:[{key:'a',kind:'choice',label:'Which value of `note_id` makes the query return every row?',options:[
-    '`7 AND 7=8`',
+    '`It is not possible to return every row, only rows of a specific id`',
     '`7--`',
-    '`7 OR 7=7`',
-    '`7 OR 8=9`']}]},
+    '`10 OR 7=7`',
+    '`1" OR 1=1`']}]},
   {id:'POST-04',title:'Reason about a UNION attack',
    body:[{p:'A simulated search returns these columns:'},
     {code:"SELECT subject, status FROM messages WHERE recipient = '<input>';",lang:'SQL'},
@@ -38,7 +38,7 @@
    fields:[{key:'a',kind:'choice',label:'How many columns must the added `SELECT` return to match the first query?',options:[
     '3 columns','1 column','2 columns','4 columns']},
     {key:'b',kind:'choice',label:'In SQLite, what does `--` do to the SQL text that follows it on the same line?',options:[
-    'The database stops and reports an error.',
+    'The database stops and reports an error if it is placed before a ;.',
     'It is read as two minus signs and does arithmetic.',
     'It makes the database run that part first.',
     'The database ignores it, as a comment.']}]},

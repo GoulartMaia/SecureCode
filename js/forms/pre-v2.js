@@ -18,15 +18,15 @@
     {code:"1  def find_item(code):\n2      code = code.replace(\"'\", \"\")\n3      sql = \"SELECT * FROM items WHERE id = \" + code\n4      return cursor.execute(sql).fetchall()",lang:'Python'}],
    fields:[{key:'a',kind:'choice',label:'Is this code protected against SQL injection?',options:[
     'Protected: line 2 removes the single quotes before the query is built.',
-    'Not protected: line 3 adds the input to the SQL text, and because `id` has no quotes around it, an input such as `1 OR 1=1` works without any quote.',
+    'Not protected: line 3 adds the input to the SQL text, so some attacks still work.',
     'Not protected: line 2 should also remove double quotes.',
     'Protected: `fetchall()` limits what the query can return.']}]},
   {id:'PRE-03',title:'Construct a numeric-input attack',
    body:[{p:'In a fictional local simulation, `item_id` is inserted directly into this query:'},
     {code:'sql = "SELECT * FROM items WHERE id = " + item_id',lang:'Python'}],
    fields:[{key:'a',kind:'choice',label:'Which value of `item_id` makes the query return every row?',options:[
-    '`1 AND 1=2`',
-    '`1 OR 2=3`',
+    '`1" OR 1=1`',
+    '`It is not possible to return every row, only rows of a specific id`',
     '`1--`',
     '`1 OR 1=1`']}]},
   {id:'PRE-04',title:'Reason about a UNION attack',
@@ -39,7 +39,7 @@
     '1 column','2 columns','3 columns','4 columns']},
     {key:'b',kind:'choice',label:'In SQLite, what does `--` do to the SQL text that follows it on the same line?',options:[
     'The database ignores it, as a comment.',
-    'The database stops and reports an error.',
+    'The database stops and reports an error if it is placed before a ;.',
     'It is read as two minus signs and does arithmetic.',
     'It makes the database run that part first.']}]},
   {id:'PRE-05',title:'Repair a lookup',

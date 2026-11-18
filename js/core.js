@@ -71,7 +71,7 @@ const STUDY_STEPS=['pretest','posttest','experience'];
 const LEVELS=[
  {id:'pretest',name:'Starting check',sub:'Six short questions before the lesson',need:null},
  {id:'diary',name:'The open diary',sub:'A small challenge to start with',need:'pretest'},
- {id:'refresher',name:'SQL refresher',sub:'Optional reminder, no points',need:'diary'},
+ {id:'refresher',name:'SQL notation basics',sub:'Optional reminder, no points',need:'diary'},
  {id:'level1',name:'Level 1: Understand',sub:'How your input changes a query',need:'refresher'},
  {id:'level2',name:'Level 2: Spot',sub:'Find the vulnerable code',need:'level1'},
  {id:'level3',name:'Level 3: Attack',sub:'Write the attacks yourself',need:'level2'},

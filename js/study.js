@@ -50,7 +50,6 @@ function studyWelcome(){
  <p>A short study about learning how SQL injection works and how to prevent it.</p></section>
  ${notice()}
  <section class="card" aria-labelledby="infoh"><h2 id="infoh">Study information</h2>
- <p class="muted" style="margin-top:-6px">Draft text for the milestone. It must be reviewed before any real participant takes part.</p>
  <ul class="info">
  <li><b>What you will do:</b> a short starting check, an interactive lesson with practice exercises, a short final check and an optional questionnaire about your experience.</li>
  <li><b>Duration:</b> to be confirmed after piloting.</li>
